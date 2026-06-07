@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.uv/
+
+# WSL / Windows metadata
+*:Zone.Identifier
+
+# OS
+.DS_Store

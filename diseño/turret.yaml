@@ -1,0 +1,108 @@
+# ============================================================================
+#  turret.yaml — ÚNICA fuente de verdad de la torreta paramétrica
+#  Réplica de la Gatling Sentry (estilo Helldivers 2) — TFI UTN FRSR 2026
+#
+#  Modelo ARTICULADO y ensamblable: piezas separadas (base estática, cuerpo
+#  giratorio, cuna basculante, cañón) unidas por pasadores/tornillos.
+#    - pan  : el cuerpo gira sobre el eje vertical (Z) dentro de la base.
+#    - tilt : la cuna+cañón bascula sobre el muñón (eje Y) del cuerpo.
+#  Todas las cotas en mm, ángulos en grados. Sin números mágicos en el código.
+# ============================================================================
+
+global:
+  scale: 1.0
+  min_wall_mm: 1.6
+  fillet_mm: 1.0
+  tessellation_mm: 0.10
+  clearance_mm: 0.35       # holgura entre piezas móviles (juntas, pasadores)
+
+# ---------------------------------------------------------------------------
+#  BASE (estática) — plataforma hexagonal baja + patas con pisada + chevrones
+# ---------------------------------------------------------------------------
+base:
+  hex_across_flats_mm: 96   # ancho entre caras opuestas del hexágono
+  height_mm: 17             # altura de la plataforma
+  top_chamfer_mm: 6         # bisel superior
+  n_legs: 3                 # patas (trípode 120°)
+  leg_orient_deg: 180       # una pata apunta hacia atrás (-X); las otras al frente
+  leg_length_mm: 70         # largo de cada pata desde el centro
+  leg_root_width_mm: 30
+  leg_tip_width_mm: 26
+  leg_thickness_mm: 9
+  tread_rows: 5             # textura de pisada: filas
+  tread_cols: 3             # textura de pisada: columnas
+  chevron_accents: true     # chevrones amarillos en las facetas frontales
+  pan_socket_dia_mm: 26     # alojamiento central donde gira el eje del cuerpo
+  pan_socket_depth_mm: 14
+  pan_screw_dia_mm: 3.2     # tornillo M3 de retención (desde abajo)
+
+# ---------------------------------------------------------------------------
+#  CUELLO + EJE DE PAN (parte del cuerpo, gira) — tambor + eje retenido
+# ---------------------------------------------------------------------------
+neck:
+  drum_dia_mm: 52           # tambor giratorio sobre la base
+  drum_height_mm: 18
+  shaft_height_mm: 13       # eje que entra en el socket de la base
+  panel_lines: 2
+
+# ---------------------------------------------------------------------------
+#  CUERPO BLINDADO (gira con el pan) — bloque facetado + detalles + muñón
+# ---------------------------------------------------------------------------
+body:
+  width_mm: 58              # ancho (Y)
+  depth_mm: 60              # profundidad (X)
+  back_height_mm: 60        # alto atrás (más alto)
+  front_height_mm: 40       # alto al frente (cuña)
+  facet_chamfer_mm: 7       # biselado de cantos (look facetado, no redondo)
+  side_stripes: true        # dos franjas amarillas en los laterales
+  ammo_box: true            # caja amarilla saliente abajo-adelante + triángulo
+  side_window: true         # ventana/panel hundido grande en un lateral
+  antenna: true             # sensores/antena arriba
+  trunnion_z_mm: 30         # altura del eje de elevación sobre la base del cuerpo
+  trunnion_x_mm: 30         # adelantamiento del eje respecto del centro del cuerpo
+  trunnion_pin_dia_mm: 3.2  # pasador/tornillo M3 del tilt
+  ear_thickness_mm: 6       # espesor de cada oreja del muñón
+  ear_gap_mm: 46            # separación entre orejas (donde entra la cuna)
+
+# ---------------------------------------------------------------------------
+#  CUNA / YUGO (bascula en tilt) — sostiene el cañón entre las orejas
+# ---------------------------------------------------------------------------
+cradle:
+  width_mm: 44              # ancho del bloque de la cuna (entra en ear_gap)
+  height_mm: 30
+  depth_mm: 34
+  chamfer_mm: 4
+
+# ---------------------------------------------------------------------------
+#  CAÑÓN GATLING (fijo a la cuna) — cañones LARGOS y FINOS + abrazaderas
+# ---------------------------------------------------------------------------
+barrels:
+  n_tubes: 6                # cantidad de cañones (REALMENTE paramétrico)
+  bolt_circle_dia_mm: 11    # círculo de paso (chico → racimo fino)
+  tube_dia_mm: 3.2          # diámetro de cada cañón (fino)
+  length_mm: 76             # largo de los cañones (largos)
+  breech_dia_mm: 22         # recámara redondeada (donde se montan)
+  breech_length_mm: 18
+  clamp_count: 2            # abrazaderas oscuras cerca de la recámara
+  clamp_width_mm: 4
+  clamp_extra_r_mm: 1.4
+  central_axis_dia_mm: 4    # eje central hueco (futuro láser)
+  hollow_axis: true
+  muzzle_ring_mm: 3         # anillo de boca que une las puntas
+
+# ---------------------------------------------------------------------------
+#  POSE — cambiá y se re-renderiza en esa pose (no afecta las piezas impresas)
+# ---------------------------------------------------------------------------
+pose:
+  pan_deg: 30
+  tilt_deg: 14
+  spin_deg: 0
+
+# ---------------------------------------------------------------------------
+#  ESTILO — solo afecta el render (colores por pieza), NO la impresión
+# ---------------------------------------------------------------------------
+style:
+  body_color: "#23262B"     # gunmetal muy oscuro
+  tube_color: "#9DA0A4"     # metálico claro (cañones)
+  accent_color: "#F2C200"   # amarillo
+  background: "#3A3A3A"

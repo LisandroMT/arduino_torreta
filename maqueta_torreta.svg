@@ -1,0 +1,265 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1080" viewBox="0 0 1500 1080" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#444"/>
+    </marker>
+    <marker id="arrR" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#d62828"/>
+    </marker>
+    <marker id="dimL" markerWidth="9" markerHeight="9" refX="2" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M7,0 L0,3 L7,6 z" fill="#1f6fb0"/>
+    </marker>
+    <marker id="dimR" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#1f6fb0"/>
+    </marker>
+  </defs>
+
+  <!-- ===== background ===== -->
+  <rect x="0" y="0" width="1500" height="1080" fill="#ffffff"/>
+
+  <!-- ===== title ===== -->
+  <text x="750" y="38" text-anchor="middle" font-size="28" font-weight="bold" fill="#1d3b5e">Torreta-Escáner 3D — Maqueta propuesta</text>
+  <text x="750" y="62" text-anchor="middle" font-size="15" fill="#555">UTN FRSR · Arduino TFI 2026 — cámara eye-in-hand + láser + ToF, base rotativa 360°</text>
+
+  <!-- ============================================================ -->
+  <!-- PANEL A : VISTA LATERAL (elevación)                          -->
+  <!-- ============================================================ -->
+  <rect x="40" y="82" width="700" height="958" rx="8" fill="#fbfbfd" stroke="#cfcfcf"/>
+  <text x="60" y="110" font-size="17" font-weight="bold" fill="#1d3b5e">A · Vista lateral (elevación)</text>
+
+  <!-- vertical azimuth axis -->
+  <line x1="380" y1="235" x2="380" y2="525" stroke="#9aa0a6" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="392" y="160" font-size="12" fill="#777" transform="rotate(90 392 160)">eje de azimut (rotación propia)</text>
+
+  <!-- ground / campo -->
+  <line x1="60" y1="600" x2="720" y2="600" stroke="#555" stroke-width="2.5"/>
+  <g stroke="#bbb" stroke-width="1">
+    <line x1="70" y1="600" x2="58" y2="612"/><line x1="110" y1="600" x2="98" y2="612"/>
+    <line x1="150" y1="600" x2="138" y2="612"/><line x1="190" y1="600" x2="178" y2="612"/>
+    <line x1="230" y1="600" x2="218" y2="612"/><line x1="270" y1="600" x2="258" y2="612"/>
+    <line x1="310" y1="600" x2="298" y2="612"/><line x1="350" y1="600" x2="338" y2="612"/>
+    <line x1="390" y1="600" x2="378" y2="612"/><line x1="430" y1="600" x2="418" y2="612"/>
+    <line x1="470" y1="600" x2="458" y2="612"/><line x1="510" y1="600" x2="498" y2="612"/>
+    <line x1="550" y1="600" x2="538" y2="612"/><line x1="590" y1="600" x2="578" y2="612"/>
+    <line x1="630" y1="600" x2="618" y2="612"/><line x1="670" y1="600" x2="658" y2="612"/>
+    <line x1="710" y1="600" x2="698" y2="612"/>
+  </g>
+  <text x="70" y="592" font-size="12" fill="#777">campo de juego (mesa)</text>
+
+  <!-- FOV cone -->
+  <polygon points="405,292 560,600 690,600" fill="#bcd6f0" opacity="0.30"/>
+  <text x="600" y="520" font-size="11" fill="#3a6ea5" transform="rotate(55 600 520)">campo visual</text>
+
+  <!-- laser beam -->
+  <line x1="483" y1="286" x2="618" y2="582" stroke="#d62828" stroke-width="2.2" stroke-dasharray="2 0" marker-end="url(#arrR)"/>
+  <text x="560" y="430" font-size="11" fill="#d62828" transform="rotate(65 560 430)">haz láser</text>
+
+  <!-- object -->
+  <rect x="600" y="566" width="40" height="34" rx="3" fill="#cfcabe" stroke="#7a7363"/>
+  <circle cx="618" cy="572" r="4" fill="#d62828"/>
+  <text x="620" y="558" text-anchor="middle" font-size="12" fill="#555">objeto + punto láser</text>
+
+  <!-- BASE FIJA (8) -->
+  <rect x="210" y="520" width="350" height="80" rx="4" fill="#ece4d3" stroke="#8a7758" stroke-width="1.6"/>
+  <text x="385" y="566" text-anchor="middle" font-size="13" font-weight="bold" fill="#6b5b3b">BASE FIJA · MDF 30×30 cm</text>
+  <text x="385" y="585" text-anchor="middle" font-size="11" fill="#6b5b3b">fuente 5 V · cap 470 µF · USB → PC</text>
+
+  <!-- tablero LCD -->
+  <rect x="138" y="470" width="64" height="130" rx="3" fill="#ece4d3" stroke="#8a7758"/>
+  <rect x="146" y="482" width="48" height="34" rx="2" fill="#22303a" stroke="#11202a"/>
+  <text x="151" y="503" font-size="10" fill="#7ee0a0" font-family="monospace">STAND-BY</text>
+  <text x="170" y="535" text-anchor="middle" font-size="10" fill="#6b5b3b">tablero</text>
+  <text x="170" y="548" text-anchor="middle" font-size="10" fill="#6b5b3b">LCD 16×2</text>
+
+  <!-- STEPPER (7) -->
+  <ellipse cx="380" cy="520" rx="34" ry="8" fill="#e8caa0" stroke="#c07a28"/>
+  <rect x="346" y="472" width="68" height="48" fill="#f7e0c0" stroke="#c07a28" stroke-width="1.6"/>
+  <ellipse cx="380" cy="472" rx="34" ry="8" fill="#f7e0c0" stroke="#c07a28"/>
+  <text x="380" y="500" text-anchor="middle" font-size="10.5" fill="#8a5a18">stepper</text>
+  <text x="380" y="513" text-anchor="middle" font-size="10.5" fill="#8a5a18">28BYJ-48</text>
+
+  <!-- SLIP RING (6) -->
+  <rect x="350" y="446" width="60" height="26" fill="#d8d8da" stroke="#777"/>
+  <ellipse cx="380" cy="446" rx="30" ry="7" fill="#eaeaec" stroke="#777"/>
+  <ellipse cx="380" cy="472" rx="30" ry="7" fill="#cfcfd2" stroke="#777"/>
+  <g stroke="#999" stroke-width="0.8"><line x1="355" y1="453" x2="405" y2="453"/><line x1="355" y1="460" x2="405" y2="460"/><line x1="355" y1="466" x2="405" y2="466"/></g>
+
+  <!-- PLATAFORMA ROTANTE (3) -->
+  <ellipse cx="380" cy="420" rx="128" ry="24" fill="#ece4d3" stroke="#8a7758" stroke-width="1.6"/>
+  <ellipse cx="380" cy="414" rx="128" ry="24" fill="#f3ece0" stroke="#8a7758" stroke-width="1.6"/>
+  <text x="380" y="438" text-anchor="middle" font-size="11" fill="#6b5b3b">plataforma rotante  Ø~18 cm</text>
+
+  <!-- IMU (4) -->
+  <rect x="262" y="396" width="56" height="24" rx="2" fill="#d6e6f5" stroke="#2f5b8c"/>
+  <text x="290" y="412" text-anchor="middle" font-size="10.5" fill="#234e7d">IMU</text>
+  <!-- Arduino (5) -->
+  <rect x="436" y="394" width="76" height="26" rx="2" fill="#dcecd2" stroke="#4a7a3a"/>
+  <text x="474" y="411" text-anchor="middle" font-size="10.5" fill="#356029">Arduino+drv</text>
+
+  <!-- post -->
+  <rect x="370" y="395" width="20" height="22" fill="#ddd3bd" stroke="#8a7758"/>
+
+  <!-- PAN-TILT (2) -->
+  <rect x="350" y="322" width="60" height="74" rx="4" fill="#f7e0c0" stroke="#c07a28" stroke-width="1.6"/>
+  <circle cx="380" cy="338" r="7" fill="#fff" stroke="#c07a28"/>
+  <text x="380" y="372" text-anchor="middle" font-size="10" fill="#8a5a18">pan-tilt</text>
+  <text x="380" y="386" text-anchor="middle" font-size="10" fill="#8a5a18">2× SG90</text>
+
+  <!-- tilt arrow -->
+  <path d="M345,330 A40,40 0 0,1 345,352" fill="none" stroke="#444" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="322" y="345" text-anchor="middle" font-size="10" fill="#555">tilt</text>
+
+  <!-- rotation arrow (azimut) -->
+  <path d="M250,438 A150,30 0 0,0 510,438" fill="none" stroke="#444" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="380" y="470" text-anchor="middle" font-size="11" fill="#444">giro 360°</text>
+
+  <!-- BARRA OPTICA (1) -->
+  <rect x="248" y="252" width="272" height="44" rx="5" fill="#f0ead9" stroke="#8a7758" stroke-width="1.6"/>
+  <!-- ToF -->
+  <rect x="256" y="260" width="44" height="28" rx="2" fill="#d6e6f5" stroke="#2f5b8c"/>
+  <text x="278" y="278" text-anchor="middle" font-size="9.5" fill="#234e7d">ToF</text>
+  <!-- CAM -->
+  <rect x="316" y="256" width="80" height="36" rx="3" fill="#d6e6f5" stroke="#2f5b8c" stroke-width="1.4"/>
+  <circle cx="396" cy="274" r="9" fill="#22303a" stroke="#11202a"/><circle cx="396" cy="274" r="4" fill="#5a7da0"/>
+  <text x="350" y="278" text-anchor="middle" font-size="10.5" fill="#234e7d">CÁMARA</text>
+  <!-- LASER -->
+  <rect x="468" y="264" width="34" height="20" rx="2" fill="#f7d0c0" stroke="#d62828"/>
+  <circle cx="500" cy="274" r="3.5" fill="#d62828"/>
+  <text x="485" y="247" text-anchor="middle" font-size="9.5" fill="#d62828">láser</text>
+
+  <!-- baseline dim -->
+  <line x1="396" y1="308" x2="500" y2="308" stroke="#1f6fb0" stroke-width="1.2" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+  <line x1="396" y1="296" x2="396" y2="312" stroke="#1f6fb0" stroke-width="0.8"/>
+  <line x1="500" y1="284" x2="500" y2="312" stroke="#1f6fb0" stroke-width="0.8"/>
+  <text x="448" y="324" text-anchor="middle" font-size="11" fill="#1f6fb0">línea base b ≈ 5–7 cm</text>
+
+  <text x="384" y="232" text-anchor="middle" font-size="12" font-weight="bold" fill="#6b5b3b">BARRA ÓPTICA (eye-in-hand)</text>
+
+  <!-- numbered badges -->
+  <g font-size="13" font-weight="bold">
+    <circle cx="232" cy="240" r="13" fill="#1d3b5e"/><text x="232" y="245" text-anchor="middle" fill="#fff">1</text>
+    <circle cx="424" cy="335" r="13" fill="#1d3b5e"/><text x="424" y="340" text-anchor="middle" fill="#fff">2</text>
+    <circle cx="520" cy="414" r="13" fill="#1d3b5e"/><text x="520" y="419" text-anchor="middle" fill="#fff">3</text>
+    <circle cx="248" cy="408" r="13" fill="#1d3b5e"/><text x="248" y="413" text-anchor="middle" fill="#fff">4</text>
+    <circle cx="524" cy="394" r="13" fill="#1d3b5e"/><text x="524" y="399" text-anchor="middle" fill="#fff">5</text>
+    <circle cx="424" cy="459" r="13" fill="#1d3b5e"/><text x="424" y="464" text-anchor="middle" fill="#fff">6</text>
+    <circle cx="424" cy="496" r="13" fill="#1d3b5e"/><text x="424" y="501" text-anchor="middle" fill="#fff">7</text>
+    <circle cx="225" cy="540" r="13" fill="#1d3b5e"/><text x="225" y="545" text-anchor="middle" fill="#fff">8</text>
+    <circle cx="690" cy="600" r="13" fill="#1d3b5e"/><text x="690" y="605" text-anchor="middle" fill="#fff">9</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- PANEL B : REFERENCIAS                                        -->
+  <!-- ============================================================ -->
+  <rect x="760" y="82" width="700" height="250" rx="8" fill="#fbfbfd" stroke="#cfcfcf"/>
+  <text x="780" y="110" font-size="17" font-weight="bold" fill="#1d3b5e">Referencias</text>
+  <g font-size="13.5" fill="#333">
+    <text x="786" y="140"><tspan font-weight="bold" fill="#1d3b5e">1 </tspan> Barra óptica: cámara + láser + ToF (eye-in-hand)</text>
+    <text x="786" y="166"><tspan font-weight="bold" fill="#1d3b5e">2 </tspan> Cabezal pan-tilt — 2× servo SG90 (pan + tilt)</text>
+    <text x="786" y="192"><tspan font-weight="bold" fill="#1d3b5e">3 </tspan> Plataforma rotante (Ø ~18 cm)</text>
+    <text x="786" y="218"><tspan font-weight="bold" fill="#1d3b5e">4 </tspan> IMU MPU-6050 (orientación / azimut real)</text>
+    <text x="786" y="244"><tspan font-weight="bold" fill="#1d3b5e">5 </tspan> Arduino UNO + driver ULN2003</text>
+    <text x="1140" y="140"><tspan font-weight="bold" fill="#1d3b5e">6 </tspan> Slip ring (giro 360° sin enroscar)</text>
+    <text x="1140" y="166"><tspan font-weight="bold" fill="#1d3b5e">7 </tspan> Stepper 28BYJ-48 (eje propio)</text>
+    <text x="1140" y="192"><tspan font-weight="bold" fill="#1d3b5e">8 </tspan> Base fija MDF + fuente + LCD</text>
+    <text x="1140" y="218"><tspan font-weight="bold" fill="#1d3b5e">9 </tspan> Campo de juego (arcos + checkerboard)</text>
+  </g>
+  <g font-size="12">
+    <rect x="786" y="280" width="18" height="14" fill="#d6e6f5" stroke="#2f5b8c"/><text x="812" y="292" fill="#333">sensado</text>
+    <rect x="900" y="280" width="18" height="14" fill="#f7e0c0" stroke="#c07a28"/><text x="926" y="292" fill="#333">actuación</text>
+    <rect x="1020" y="280" width="18" height="14" fill="#dcecd2" stroke="#4a7a3a"/><text x="1046" y="292" fill="#333">control</text>
+    <rect x="1120" y="280" width="18" height="14" fill="#ece4d3" stroke="#8a7758"/><text x="1146" y="292" fill="#333">estructura</text>
+    <line x1="1230" y1="287" x2="1262" y2="287" stroke="#d62828" stroke-width="2.2"/><text x="1270" y="292" fill="#333">haz láser</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- PANEL C : DETALLE BARRA OPTICA                               -->
+  <!-- ============================================================ -->
+  <rect x="760" y="346" width="700" height="288" rx="8" fill="#fbfbfd" stroke="#cfcfcf"/>
+  <text x="780" y="374" font-size="17" font-weight="bold" fill="#1d3b5e">C · Detalle: geometría de la barra óptica (planta)</text>
+
+  <!-- bar -->
+  <rect x="820" y="430" width="430" height="60" rx="6" fill="#f0ead9" stroke="#8a7758" stroke-width="1.6"/>
+  <!-- cam -->
+  <rect x="840" y="438" width="90" height="44" rx="4" fill="#d6e6f5" stroke="#2f5b8c" stroke-width="1.5"/>
+  <text x="885" y="464" text-anchor="middle" font-size="12" fill="#234e7d">CÁMARA</text>
+  <circle cx="930" cy="460" r="8" fill="#22303a"/>
+  <!-- tof -->
+  <rect x="940" y="446" width="46" height="30" rx="3" fill="#d6e6f5" stroke="#2f5b8c"/>
+  <text x="963" y="465" text-anchor="middle" font-size="10" fill="#234e7d">ToF</text>
+  <!-- laser -->
+  <rect x="1160" y="444" width="44" height="32" rx="3" fill="#f7d0c0" stroke="#d62828"/>
+  <text x="1182" y="464" text-anchor="middle" font-size="10" fill="#d62828">láser</text>
+  <circle cx="1204" cy="460" r="4" fill="#d62828"/>
+
+  <!-- optical axis -->
+  <line x1="930" y1="460" x2="1410" y2="460" stroke="#2f5b8c" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text x="1330" y="452" font-size="11" fill="#2f5b8c">eje óptico cámara</text>
+  <!-- laser beam slight toe-in -->
+  <line x1="1204" y1="460" x2="1408" y2="452" stroke="#d62828" stroke-width="2" marker-end="url(#arrR)"/>
+  <text x="1300" y="495" font-size="11" fill="#d62828">haz láser (leve convergencia)</text>
+
+  <!-- baseline dimension -->
+  <line x1="930" y1="520" x2="1204" y2="520" stroke="#1f6fb0" stroke-width="1.3" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+  <line x1="930" y1="490" x2="930" y2="526" stroke="#1f6fb0" stroke-width="0.8"/>
+  <line x1="1204" y1="478" x2="1204" y2="526" stroke="#1f6fb0" stroke-width="0.8"/>
+  <text x="1067" y="540" text-anchor="middle" font-size="13" fill="#1f6fb0">línea base  b  (fija y calibrada)</text>
+
+  <text x="800" y="580" font-size="13.5" fill="#333">Profundidad por triangulación:</text>
+  <text x="800" y="606" font-size="16" font-weight="bold" fill="#1d3b5e" font-family="Georgia, serif">r = ( f · b ) / d</text>
+  <text x="1000" y="606" font-size="12" fill="#666">f: focal (px) · b: línea base · d: desplazamiento del punto láser (px)</text>
+
+  <!-- ============================================================ -->
+  <!-- PANEL D : VISTA EN PLANTA DEL CAMPO                          -->
+  <!-- ============================================================ -->
+  <rect x="760" y="648" width="700" height="392" rx="8" fill="#fbfbfd" stroke="#cfcfcf"/>
+  <text x="780" y="676" font-size="17" font-weight="bold" fill="#1d3b5e">D · Vista en planta — campo de juego 60×60 cm</text>
+
+  <!-- field square -->
+  <rect x="820" y="700" width="580" height="300" rx="4" fill="#f7f5ef" stroke="#c9bfa6"/>
+
+  <!-- turret center -->
+  <g>
+    <!-- arcs every 30cm -->
+    <path d="M970,1000 A140,140 0 0,1 1250,1000" fill="none" stroke="#c9bfa6" stroke-width="1.2"/>
+    <path d="M920,1000 A190,190 0 0,1 1300,1000" fill="none" stroke="#c9bfa6" stroke-width="1.2"/>
+    <path d="M870,1000 A240,240 0 0,1 1350,1000" fill="none" stroke="#c9bfa6" stroke-width="1.2"/>
+    <!-- radial lines every 30 deg -->
+    <g stroke="#d8cfb8" stroke-width="1">
+      <line x1="1110" y1="1000" x2="1110" y2="760"/>
+      <line x1="1110" y1="1000" x2="1318" y2="880"/>
+      <line x1="1110" y1="1000" x2="1318" y2="1000"/>
+      <line x1="1110" y1="1000" x2="902" y2="880"/>
+      <line x1="1110" y1="1000" x2="902" y2="1000"/>
+      <line x1="1110" y1="1000" x2="1230" y2="792"/>
+      <line x1="1110" y1="1000" x2="990" y2="792"/>
+    </g>
+    <!-- 360 dashed circle -->
+    <circle cx="1110" cy="1000" r="34" fill="none" stroke="#888" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="1110" y="966" text-anchor="middle" font-size="10" fill="#777">giro 360°</text>
+
+    <!-- FOV wedge -->
+    <path d="M1110,1000 L1170,800 L1050,800 Z" fill="#bcd6f0" opacity="0.45"/>
+    <text x="1110" y="792" text-anchor="middle" font-size="11" fill="#3a6ea5">campo visual</text>
+
+    <!-- turret -->
+    <circle cx="1110" cy="1000" r="14" fill="#1d3b5e"/>
+    <text x="1110" y="1024" text-anchor="middle" font-size="11" fill="#1d3b5e" font-weight="bold">torreta</text>
+
+    <!-- laser line to object -->
+    <line x1="1110" y1="1000" x2="1150" y2="840" stroke="#d62828" stroke-width="2" marker-end="url(#arrR)"/>
+    <!-- object -->
+    <rect x="1140" y="824" width="22" height="22" rx="3" fill="#cfcabe" stroke="#7a7363"/>
+    <text x="1180" y="838" font-size="11" fill="#555">objeto</text>
+
+    <!-- angle theta -->
+    <path d="M1110,952 A48,48 0 0,1 1144,966" fill="none" stroke="#444" stroke-width="1.2"/>
+    <text x="1128" y="945" font-size="12" fill="#444">θ</text>
+
+    <!-- distance labels -->
+    <text x="1255" y="1014" font-size="10" fill="#9a8e6e">30</text>
+    <text x="1305" y="1014" font-size="10" fill="#9a8e6e">60</text>
+    <text x="1355" y="1014" font-size="10" fill="#9a8e6e">90 cm</text>
+  </g>
+  <text x="830" y="990" font-size="11" fill="#777">arcos cada 30° (transportador)</text>
+</svg>

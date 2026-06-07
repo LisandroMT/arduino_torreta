@@ -1,0 +1,22 @@
+[project]
+name = "torreta-cad"
+version = "0.1.0"
+description = "Torreta láser sci-fi pan-tilt — modelo CAD paramétrico (build123d) para el TFI de Arduino, UTN FRSR 2026"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "build123d>=0.7",   # CAD paramétrico B-rep sobre OpenCASCADE (STEP/STL/3MF/GLB)
+    "pyvista>=0.46",    # render offscreen (VTK) de calidad de presentación
+    "pyyaml>=6.0",      # carga de turret.yaml
+    "numpy>=1.26",
+]
+
+[project.scripts]
+torreta = "torreta.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["torreta", "torreta.parts"]
