@@ -1,0 +1,4 @@
+opencv-contrib-python>=4.9   # lo instala mediapipe; no mezclar con opencv-python
+numpy>=1.26
+pyserial>=3.5
+mediapipe==0.10.14   # las versiones nuevas quitaron la API mp.solutions
