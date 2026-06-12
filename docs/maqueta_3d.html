@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<!--
+  Torreta de seguimiento y apuntado — bosquejo 3D interactivo de la maqueta
+  UTN FRSR · Electiva Arduino · TFI 2026
+
+  Cómo verlo: doble clic (se abre en el navegador). Requiere internet la
+  primera vez: Three.js se carga desde CDN.
+
+  Controles: arrastrar = orbitar · rueda = zoom · clic derecho = panear.
+  Modo demo: la torreta sigue sola al objetivo y dispara cuando está en rango.
+  Modo manual: sliders de azimut/elevación + botón DISPARAR (como el joystick).
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Torreta — bosquejo 3D de la maqueta</title>
+<style>
+  body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; background: #111; }
+  #ui {
+    position: fixed; top: 12px; left: 12px; z-index: 10;
+    background: rgba(20,24,28,.88); color: #eee; padding: 14px 16px;
+    border-radius: 10px; width: 230px; font-size: 13px;
+  }
+  #ui h1 { font-size: 15px; margin: 0 0 8px; color: #ffb74d; }
+  #ui label { display: block; margin-top: 8px; }
+  #ui input[type=range] { width: 100%; }
+  #ui .hint { color: #999; font-size: 11px; margin-top: 10px; line-height: 1.4; }
+  #ui button {
+    margin-top: 10px; width: 100%; padding: 7px; border: 0; border-radius: 6px;
+    background: #c62828; color: #fff; font-weight: bold; cursor: pointer;
+  }
+  #ui button:disabled { background: #555; cursor: default; }
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 10;
+    background: rgba(20,24,28,.88); color: #9fe89f; padding: 12px 16px;
+    border-radius: 10px; font-family: ui-monospace, monospace; font-size: 13px;
+    min-width: 215px; line-height: 1.6;
+  }
+  #hud .titulo { color: #888; font-size: 11px; }
+  #hud .fuera { color: #ef9a9a; }
+  #hud .fuego { color: #ffd54f; font-weight: bold; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="ui">
+  <h1>Torreta — maqueta 3D</h1>
+  <label><input type="radio" name="modo" value="demo" checked> Demo (autónomo)</label>
+  <label><input type="radio" name="modo" value="manual"> Manual</label>
+  <label>Azimut: <span id="vAz">0</span >°
+    <input id="sAz" type="range" min="-180" max="180" value="0" disabled></label>
+  <label>Elevación: <span id="vEl">0</span>°
+    <input id="sEl" type="range" min="0" max="60" value="0" disabled></label>
+  <button id="btnFuego" disabled>DISPARAR (pulsación corta)</button>
+  <label style="margin-top:10px"><input id="chkEtiq" type="checkbox" checked> Etiquetas</label>
+  <div class="hint">Arrastrar: orbitar · Rueda: zoom · Clic derecho: panear.<br>
+  Unidades en cm. El sector de giro es ±180° (tope marcado en rojo).</div>
+</div>
+
+<div id="hud">
+  <div class="titulo">TELEMETRÍA (lo que la PC muestra sobre el video)</div>
+  <div>modo: <span id="hModo">AUTO</span></div>
+  <div>azimut: <span id="hAz">0.0</span>°</div>
+  <div>elevación: <span id="hEl">0.0</span>°</div>
+  <div>distancia: <span id="hDist">--</span> cm</div>
+  <div id="hEstado">SIGUIENDO…</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ----------------------------- Parámetros (cm) -----------------------------
+const RANGO_MIN = 20, RANGO_MAX = 150;   // criterio de disparo
+const ALTURA_PIVOTE = 19;                // altura del eje de elevación
+
+// ----------------------------- Escena base ---------------------------------
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0x20262c);
+escena.fog = new THREE.Fog(0x20262c, 400, 900);
+
+const camara = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 2000);
+camara.position.set(170, 130, 230);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const controles = new OrbitControls(camara, renderer.domElement);
+controles.target.set(0, 18, 0);
+controles.maxPolarAngle = Math.PI * 0.495;
+
+escena.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sol = new THREE.DirectionalLight(0xffffff, 1.6);
+sol.position.set(120, 220, 100);
+sol.castShadow = true;
+sol.shadow.camera.left = sol.shadow.camera.bottom = -250;
+sol.shadow.camera.right = sol.shadow.camera.top = 250;
+sol.shadow.mapSize.set(2048, 2048);
+escena.add(sol);
+
+// Piso + grilla
+const piso = new THREE.Mesh(
+  new THREE.PlaneGeometry(900, 900),
+  new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 1 }));
+piso.rotation.x = -Math.PI / 2;
+piso.receiveShadow = true;
+escena.add(piso);
+const grilla = new THREE.GridHelper(900, 45, 0x546e7a, 0x455a64);
+grilla.position.y = 0.05;
+escena.add(grilla);
+
+// Anillos de rango (criterio de disparo) y tope de sector
+function anillo(radio, color) {
+  const pts = [];
+  for (let i = 0; i <= 128; i++) {
+    const a = i / 128 * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.sin(a) * radio, 0.15, Math.cos(a) * radio));
+  }
+  const linea = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 }));
+  escena.add(linea);
+}
+anillo(RANGO_MIN, 0xef5350);
+anillo(RANGO_MAX, 0xef5350);
+// Tope del sector ±180° (hacia atrás, -Z)
+escena.add(new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(0, 0.2, -14), new THREE.Vector3(0, 0.2, -230)]),
+  new THREE.LineBasicMaterial({ color: 0xc62828 })));
+
+// ------------------------- Materiales auxiliares ---------------------------
+const mat = (color, extra = {}) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
+function caja(w, h, d, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function cilindro(r, h, color, radial = 24) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, radial), mat(color));
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
+// Etiquetas (sprites con texto)
+const etiquetas = [];
+function etiqueta(texto, padre, x, y, z, escala = 1) {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 112;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(15,18,22,.78)';
+  cx.beginPath(); cx.roundRect(4, 4, 504, 104, 22); cx.fill();
+  cx.fillStyle = '#ffe082';
+  cx.font = 'bold 44px system-ui, sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(texto, 256, 58);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  sp.scale.set(34 * escala, 7.5 * escala, 1);
+  sp.position.set(x, y, z);
+  padre.add(sp);
+  etiquetas.push(sp);
+}
+
+// ============================ LA TORRETA ====================================
+// Base fija (madera) con el stepper adentro
+const base = caja(36, 4, 36, 0x8d6e63);
+base.position.y = 2;
+escena.add(base);
+const stepper = cilindro(3, 5, 0x616161);
+stepper.position.y = 6.5;
+escena.add(stepper);
+etiqueta('Base + 28BYJ-48 (azimut ±180°)', escena, 0, 1.6, 26, 1.15);
+
+// Grupo de AZIMUT (gira en Y sobre la base)
+const gAzimut = new THREE.Group();
+gAzimut.position.y = 9.6;
+escena.add(gAzimut);
+
+const plataforma = cilindro(11.5, 1.6, 0x455a64, 36);
+gAzimut.add(plataforma);
+// Horquilla
+for (const lado of [-1, 1]) {
+  const columna = caja(2.2, 10.5, 3, 0x607d8b);
+  columna.position.set(lado * 5.4, 5.8, 0);
+  gAzimut.add(columna);
+}
+// Servo de elevación, pegado a la columna derecha
+const servo = caja(2.6, 3, 4.4, 0x1565c0);
+servo.position.set(7.2, 9.4, 0);
+gAzimut.add(servo);
+etiqueta('Servo SG90 (tilt)', gAzimut, 13, 13.5, 0, 0.8);
+
+// Grupo de ELEVACIÓN (gira en X, a la altura del pivote)
+const gTilt = new THREE.Group();
+gTilt.position.y = ALTURA_PIVOTE - 9.6;   // relativo a la plataforma
+gAzimut.add(gTilt);
+
+// Cañón (apunta hacia +Z)
+const geoCanon = new THREE.CylinderGeometry(1.7, 1.7, 20, 24);
+geoCanon.rotateX(Math.PI / 2);
+const canon = new THREE.Mesh(geoCanon, mat(0x37474f));
+canon.castShadow = true;
+canon.position.z = 4;
+gTilt.add(canon);
+const geoBoca = new THREE.CylinderGeometry(2.1, 2.1, 1.6, 24);
+geoBoca.rotateX(Math.PI / 2);
+const boca = new THREE.Mesh(geoBoca, mat(0x263238));
+boca.position.z = 13.4;
+gTilt.add(boca);
+
+// Webcam sobre el cañón (coaxial)
+const webcam = caja(3.6, 2.6, 2.6, 0x212121);
+webcam.position.set(0, 3.2, 4);
+gTilt.add(webcam);
+const geoLente = new THREE.CylinderGeometry(0.95, 0.95, 0.7, 20);
+geoLente.rotateX(Math.PI / 2);
+const lente = new THREE.Mesh(geoLente, mat(0x0d47a1, { roughness: 0.2, metalness: 0.4 }));
+lente.position.set(0, 3.2, 5.5);
+gTilt.add(lente);
+etiqueta('Webcam (coaxial)', gTilt, 0, 8, 4, 0.85);
+
+// Láser en la punta
+const geoLaser = new THREE.CylinderGeometry(0.55, 0.55, 3, 16);
+geoLaser.rotateX(Math.PI / 2);
+const laserMod = new THREE.Mesh(geoLaser, mat(0xb71c1c));
+laserMod.position.set(0, 2.6, 12.2);
+gTilt.add(laserMod);
+etiqueta('Láser', gTilt, 5, 4.5, 12, 0.55);
+
+// HC-SR04 bajo el cañón, mirando al frente
+const pcbUs = caja(5, 2.2, 0.7, 0x1e88e5);
+pcbUs.position.set(0, -3, 12.6);
+gTilt.add(pcbUs);
+for (const lado of [-1, 1]) {
+  const geoOjo = new THREE.CylinderGeometry(0.9, 0.9, 1.2, 18);
+  geoOjo.rotateX(Math.PI / 2);
+  const ojo = new THREE.Mesh(geoOjo, mat(0xb0bec5, { metalness: 0.5, roughness: 0.3 }));
+  ojo.position.set(lado * 1.4, -3, 13.4);
+  gTilt.add(ojo);
+}
+etiqueta('HC-SR04', gTilt, 0, -6.4, 13, 0.7);
+
+// ====================== PERIFÉRICOS SOBRE LA MESA ===========================
+const gElec = new THREE.Group();
+gElec.position.set(42, 0, 22);
+gElec.rotation.y = -0.45;
+escena.add(gElec);
+
+const protoboard = caja(17, 1.4, 6.5, 0xf5f5f5);
+protoboard.position.y = 0.7;
+gElec.add(protoboard);
+const esp32 = caja(5.2, 1.2, 2.8, 0x263238);
+esp32.position.set(-4.5, 1.9, -2.2);   // al borde: una hilera "en el aire"
+gElec.add(esp32);
+etiqueta('ESP32 + protoboard', gElec, 0, 7, 0, 0.95);
+
+// LCD con pantalla dinámica (textura canvas)
+const lcdCv = document.createElement('canvas');
+lcdCv.width = 256; lcdCv.height = 96;
+const lcdCx = lcdCv.getContext('2d');
+const lcdTex = new THREE.CanvasTexture(lcdCv);
+const lcd = new THREE.Group();
+lcd.position.set(58, 0, 4); lcd.rotation.y = -0.6;
+escena.add(lcd);
+const lcdCuerpo = caja(9.5, 4.4, 1, 0x2e7d32);
+lcdCuerpo.position.y = 2.8;
+lcd.add(lcdCuerpo);
+const lcdPantalla = new THREE.Mesh(
+  new THREE.PlaneGeometry(8, 3),
+  new THREE.MeshBasicMaterial({ map: lcdTex }));
+lcdPantalla.position.set(0, 2.9, 0.55);
+lcd.add(lcdPantalla);
+etiqueta('LCD 1602', lcd, 0, 7.5, 0, 0.6);
+
+function pintarLcd(l1, l2) {
+  lcdCx.fillStyle = '#9ccc65';
+  lcdCx.fillRect(0, 0, 256, 96);
+  lcdCx.fillStyle = '#1b3a1b';
+  lcdCx.font = 'bold 30px ui-monospace, monospace';
+  lcdCx.fillText(l1, 10, 38);
+  lcdCx.fillText(l2, 10, 80);
+  lcdTex.needsUpdate = true;
+}
+
+// Joystick
+const joy = new THREE.Group();
+joy.position.set(26, 0, 40);
+escena.add(joy);
+const joyBase = caja(5, 1.8, 5, 0x37474f);
+joyBase.position.y = 0.9;
+joy.add(joyBase);
+const palanca = cilindro(0.45, 3.4, 0x616161);
+palanca.position.y = 3.4;
+joy.add(palanca);
+const perilla = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 16), mat(0x212121));
+perilla.position.y = 5.4;
+perilla.castShadow = true;
+joy.add(perilla);
+etiqueta('Joystick (manual + ISR)', joy, 0, 9.5, 0, 0.8);
+
+// ============================ EL OBJETIVO ===================================
+const objetivo = new THREE.Group();
+escena.add(objetivo);
+const varilla = cilindro(0.4, 30, 0x9e9e9e);
+varilla.position.y = 15;
+objetivo.add(varilla);
+const blanco = new THREE.Mesh(new THREE.SphereGeometry(3.4, 24, 18), mat(0xff7043));
+blanco.castShadow = true;
+objetivo.add(blanco);
+etiqueta('Objetivo móvil', objetivo, 0, 42, 0, 0.9);
+
+// Rayo láser + destello de impacto
+const rayoGeo = new THREE.BufferGeometry().setFromPoints(
+  [new THREE.Vector3(), new THREE.Vector3()]);
+const rayo = new THREE.Line(rayoGeo,
+  new THREE.LineBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.95 }));
+rayo.visible = false;
+escena.add(rayo);
+const destello = new THREE.Mesh(
+  new THREE.SphereGeometry(1.6, 16, 12),
+  new THREE.MeshBasicMaterial({ color: 0xffe082 }));
+destello.visible = false;
+escena.add(destello);
+
+// ============================ LÓGICA / UI ===================================
+const ui = {
+  modo: 'demo',
+  sAz: document.getElementById('sAz'), sEl: document.getElementById('sEl'),
+  vAz: document.getElementById('vAz'), vEl: document.getElementById('vEl'),
+  btnFuego: document.getElementById('btnFuego'),
+  hModo: document.getElementById('hModo'), hAz: document.getElementById('hAz'),
+  hEl: document.getElementById('hEl'), hDist: document.getElementById('hDist'),
+  hEstado: document.getElementById('hEstado'),
+};
+document.querySelectorAll('input[name=modo]').forEach(r =>
+  r.addEventListener('change', e => {
+    ui.modo = e.target.value;
+    const manual = ui.modo === 'manual';
+    ui.sAz.disabled = ui.sEl.disabled = !manual;
+    ui.btnFuego.disabled = !manual;
+  }));
+document.getElementById('chkEtiq').addEventListener('change', e =>
+  etiquetas.forEach(s => s.visible = e.target.checked));
+
+let azActual = 0, elActual = 0;          // estado de la torreta (grados)
+let fuegoHasta = 0, enfriadoHasta = 0;   // temporizadores de disparo
+ui.btnFuego.addEventListener('click', () => { fuegoHasta = reloj.elapsedTime + 0.5; });
+
+const reloj = new THREE.Clock();
+const _vA = new THREE.Vector3(), _vB = new THREE.Vector3();
+let tPrevio = 0;
+
+function animar() {
+  requestAnimationFrame(animar);
+  const t = reloj.getElapsedTime();
+  const dt = Math.min(t - tPrevio, 0.05);
+  tPrevio = t;
+
+  // --- Objetivo móvil: arco frente a la torreta, entra y sale de rango ---
+  const angObj = 70 * Math.sin(0.25 * t);                  // grados
+  const radObj = 110 + 50 * Math.sin(0.13 * t + 1);        // 60..160 cm
+  const altObj = 30 + 12 * Math.sin(0.21 * t);             // altura del blanco
+  const aRad = THREE.MathUtils.degToRad(angObj);
+  objetivo.position.set(radObj * Math.sin(aRad), 0, radObj * Math.cos(aRad));
+  blanco.position.y = altObj;
+  varilla.scale.y = altObj / 30;
+  varilla.position.y = altObj / 2;
+
+  // --- Distancia real cañón→blanco (lo que mediría el HC-SR04) ---
+  boca.getWorldPosition(_vA);
+  blanco.getWorldPosition(_vB);
+  const dist = _vA.distanceTo(_vB);
+
+  // --- Apuntado deseado ---
+  let azDeseado, elDeseado;
+  if (ui.modo === 'demo') {
+    azDeseado = angObj;
+    const dH = Math.hypot(objetivo.position.x, objetivo.position.z);
+    elDeseado = THREE.MathUtils.clamp(
+      THREE.MathUtils.radToDeg(Math.atan2(altObj - ALTURA_PIVOTE, dH)), 0, 60);
+    ui.sAz.value = Math.round(azDeseado);
+    ui.sEl.value = Math.round(elDeseado);
+  } else {
+    azDeseado = +ui.sAz.value;
+    elDeseado = +ui.sEl.value;
+  }
+  ui.vAz.textContent = Math.round(azDeseado);
+  ui.vEl.textContent = Math.round(elDeseado);
+
+  // --- Lazo proporcional (suavizado, como el visual servoing) ---
+  const k = Math.min(1, dt * 3);
+  azActual += (azDeseado - azActual) * k;
+  elActual += (elDeseado - elActual) * k;
+  azActual = THREE.MathUtils.clamp(azActual, -180, 180);   // CU-07
+  gAzimut.rotation.y = THREE.MathUtils.degToRad(azActual);
+  gTilt.rotation.x = -THREE.MathUtils.degToRad(elActual);
+
+  // --- Criterio de disparo (CU-02 / CU-03) ---
+  const centrado = Math.abs(azDeseado - azActual) < 2 &&
+                   Math.abs(elDeseado - elActual) < 2;
+  const enRango = dist >= RANGO_MIN && dist <= RANGO_MAX;
+  if (ui.modo === 'demo' && centrado && enRango && t > enfriadoHasta) {
+    fuegoHasta = t + 0.5;
+    enfriadoHasta = t + 2.5;
+  }
+
+  // --- Rayo láser ---
+  const disparando = t < fuegoHasta;
+  rayo.visible = destello.visible = disparando;
+  if (disparando) {
+    boca.getWorldPosition(_vA);
+    const dir = new THREE.Vector3(0, 0, 1)
+      .applyQuaternion(gTilt.getWorldQuaternion(new THREE.Quaternion()));
+    const fin = centrado ? _vB.clone() : _vA.clone().addScaledVector(dir, 220);
+    rayo.geometry.setFromPoints([_vA, fin]);
+    destello.position.copy(fin);
+    destello.scale.setScalar(1 + 0.5 * Math.sin(t * 40));
+  }
+
+  // --- HUD + LCD ---
+  ui.hModo.textContent = ui.modo === 'demo' ? 'AUTO' : 'MANUAL';
+  ui.hAz.textContent = azActual.toFixed(1);
+  ui.hEl.textContent = elActual.toFixed(1);
+  ui.hDist.textContent = dist.toFixed(0);
+  ui.hEstado.className = '';
+  if (disparando) { ui.hEstado.textContent = '♪ OBJETIVO ALCANZADO'; ui.hEstado.className = 'fuego'; }
+  else if (!enRango) { ui.hEstado.textContent = 'FUERA DE RANGO (no dispara)'; ui.hEstado.className = 'fuera'; }
+  else ui.hEstado.textContent = centrado ? 'EN RANGO — listo' : 'SIGUIENDO…';
+  pintarLcd(
+    `${ui.modo === 'demo' ? 'AUTO' : 'MAN '} az:${azActual.toFixed(0)}`,
+    disparando ? 'OBJETIVO!' : `d:${dist.toFixed(0)}cm t:24.0C`);
+
+  controles.update();
+  renderer.render(escena, camara);
+}
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth / innerHeight;
+  camara.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+pintarLcd('HOMING...', '');
+animar();
+</script>
+</body>
+</html>
