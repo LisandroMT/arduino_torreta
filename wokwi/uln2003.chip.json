@@ -1,0 +1,9 @@
+{
+  "name": "ULN2003",
+  "author": "Torreta UTN - TFI Arduino 2026",
+  "pins": [
+    "IN1", "IN2", "IN3", "IN4", "GND",
+    "VCC", "OUT1", "OUT2", "OUT3", "OUT4"
+  ],
+  "controls": []
+}

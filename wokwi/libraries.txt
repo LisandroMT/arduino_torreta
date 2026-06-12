@@ -1,0 +1,6 @@
+# Librerías que Wokwi instala automáticamente
+LiquidCrystal I2C
+ESP32Servo
+AccelStepper
+DHT sensor library
+Adafruit Unified Sensor
