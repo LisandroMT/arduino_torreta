@@ -9,7 +9,7 @@
     { "type": "chip-uln2003", "id": "uln", "top": 280, "left": 230, "attrs": {} },
     { "type": "wokwi-servo", "id": "servo", "top": 450, "left": 60, "attrs": {} },
     { "type": "wokwi-buzzer", "id": "buzzer", "top": 580, "left": 160, "attrs": { "volume": "0.1" } },
-    { "type": "wokwi-lcd1602", "id": "lcd", "top": 0, "left": 700, "attrs": { "pins": "i2c" } },
+    { "type": "board-ssd1306", "id": "oled", "top": 0, "left": 700, "attrs": {} },
     { "type": "wokwi-mpu6050", "id": "imu", "top": 180, "left": 760, "attrs": {} },
     { "type": "wokwi-resistor", "id": "r1", "top": 330, "left": 700, "attrs": { "value": "220" } },
     { "type": "wokwi-led", "id": "laser", "top": 310, "left": 820, "attrs": { "color": "red", "label": "láser" } },
@@ -20,10 +20,10 @@
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
 
-    [ "lcd:SDA", "esp:21", "blue", [] ],
-    [ "lcd:SCL", "esp:22", "green", [] ],
-    [ "lcd:VCC", "esp:5V", "red", [] ],
-    [ "lcd:GND", "esp:GND.1", "black", [] ],
+    [ "oled:SDA", "esp:21", "blue", [] ],
+    [ "oled:SCL", "esp:22", "green", [] ],
+    [ "oled:VCC", "esp:3V3", "red", [] ],
+    [ "oled:GND", "esp:GND.1", "black", [] ],
 
     [ "imu:SDA", "esp:21", "blue", [] ],
     [ "imu:SCL", "esp:22", "green", [] ],

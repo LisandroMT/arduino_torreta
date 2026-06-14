@@ -8,7 +8,8 @@
 // ============================================================================
 
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <ESP32Servo.h>
 #include <AccelStepper.h>
 #include <DHT.h>
@@ -35,7 +36,7 @@ const unsigned long T_PULSACION_LARGA_MS = 800;
 const unsigned long T_COOLDOWN_DISPARO_MS = 2000;
 
 // ---------------------------- Objetos --------------------------------------
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
 Servo servoTilt;
 // Orden de pines IN1-IN3-IN2-IN4: secuencia correcta para el 28BYJ-48
 AccelStepper stepper(AccelStepper::HALF4WIRE, PIN_IN1, PIN_IN3, PIN_IN2, PIN_IN4);
@@ -49,7 +50,7 @@ int   elevacion = 45;          // ángulo actual del servo
 bool  blancoCentrado = false;  // la PC informó corrección (0,0)
 bool  blancoVisible  = false;  // la PC está enviando correcciones
 float ultimaDist = -1, ultimaTemp = 20.0;
-unsigned long t_ultimoDisparo = 0, t_ultimaTelemetria = 0, t_ultimoLcd = 0;
+unsigned long t_ultimoDisparo = 0, t_ultimaTelemetria = 0, t_ultimaPantalla = 0;
 unsigned long t_ultimoJoystick = 0;
 
 // ----------------- ISR del pulsador (gesto corto/largo) --------------------
@@ -114,10 +115,14 @@ void moverElevacion(int gradosRelativos) {
 void disparar() {
   digitalWrite(PIN_LASER, HIGH);
   digitalWrite(PIN_BUZZER, HIGH);
-  lcd.clear();
-  lcd.print("OBJETIVO");
-  lcd.setCursor(0, 1);
-  lcd.print("ALCANZADO!");
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor(0, 8);
+  display.print("OBJETIVO");
+  display.setCursor(0, 36);
+  display.print("ALCANZADO!");
+  display.display();
   Serial.println("FIRE");
   delay(500);                       // aviso breve (bloqueante, aceptable aqui)
   digitalWrite(PIN_LASER, LOW);
@@ -128,8 +133,12 @@ void disparar() {
 // ------------------------------- HOMING ------------------------------------
 // Nivela el cañón con el MPU6050 (busca pitch = 0) y fija el cero de azimut.
 void hacerHoming() {
-  lcd.clear();
-  lcd.print("HOMING...");
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor(0, 24);
+  display.print("HOMING...");
+  display.display();
   servoTilt.write(elevacion);
   delay(300);
   for (int i = 0; i < 90; i++) {        // tope de intentos por seguridad
@@ -167,18 +176,36 @@ void procesarSerial() {
   }
 }
 
-// --------------------------- LCD y telemetría ------------------------------
-void actualizarLcd() {
-  lcd.clear();
-  lcd.print(estado == ST_AUTONOMO ? "AUTO" : "MANUAL");
-  lcd.print(" az:");
-  lcd.print((long)(stepper.currentPosition() * 360L / PASOS_POR_VUELTA));
-  lcd.setCursor(0, 1);
-  lcd.print("d:");
-  if (ultimaDist < 0) lcd.print("---");
-  else                lcd.print((int)ultimaDist);
-  lcd.print("cm t:");
-  lcd.print(ultimaTemp, 1);
+// --------------------------- Pantalla y telemetría -------------------------
+void actualizarPantalla() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  // Linea superior (pequeña): modo y azimut en grados
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print(estado == ST_AUTONOMO ? "AUTO" : "MANUAL");
+  display.print(" az:");
+  display.print((long)(stepper.currentPosition() * 360L / PASOS_POR_VUELTA));
+  display.print((char)247);   // simbolo de grado
+
+  // Distancia en grande
+  display.setTextSize(3);
+  display.setCursor(0, 20);
+  if (ultimaDist < 0) display.print("---");
+  else                display.print((int)ultimaDist);
+  display.setTextSize(1);
+  display.print(" cm");
+
+  // Temperatura (pequeña, abajo)
+  display.setTextSize(1);
+  display.setCursor(0, 52);
+  display.print("temp: ");
+  display.print(ultimaTemp, 1);
+  display.print((char)247);
+  display.print("C");
+
+  display.display();
 }
 
 // Estado hacia la PC: esta linea es la que la PC mostraria sobre el video
@@ -201,8 +228,9 @@ void setup() {
   Wire.write(0x6B); Wire.write(0);
   Wire.endTransmission();
 
-  lcd.init();
-  lcd.backlight();
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.display();
   dht.begin();
 
   pinMode(PIN_TRIG, OUTPUT);
@@ -259,9 +287,9 @@ void loop() {
     }
   }
 
-  if (millis() - t_ultimoLcd > 700) {
-    t_ultimoLcd = millis();
-    actualizarLcd();
+  if (millis() - t_ultimaPantalla > 700) {
+    t_ultimaPantalla = millis();
+    actualizarPantalla();
   }
 
   stepper.run();   // el stepper avanza de a un paso, sin bloquear

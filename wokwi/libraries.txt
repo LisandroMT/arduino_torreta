@@ -1,5 +1,6 @@
 # Librerías que Wokwi instala automáticamente
-LiquidCrystal I2C
+Adafruit SSD1306
+Adafruit GFX Library
 ESP32Servo
 AccelStepper
 DHT sensor library

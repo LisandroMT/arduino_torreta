@@ -51,7 +51,7 @@ manual y autónoma.
 - **Nivelar y centrar** el cañón usando una unidad de medición inercial (referencia absoluta de
   elevación).
 - Incorporar un **modo de control manual** por joystick, conmutable con el modo autónomo.
-- Señalizar el estado del sistema en una **pantalla LCD** y avisar el impacto con un **buzzer**.
+- Señalizar el estado del sistema en una **pantalla OLED** y avisar el impacto con un **buzzer**.
 - Validar el funcionamiento mediante prototipo físico sobre una maqueta de bajo costo.
 
 ### 2.3. Alcance
@@ -88,7 +88,7 @@ La arquitectura es **distribuida**, repartiendo la carga entre dos nodos según 
      angular y envío                       │ SG90        │ tilt    │ MPU6050       │ nivel/cero
    • Muestra distancia en pantalla         │ Láser       │ disparo │ Joystick +    │ manual +
                                            │ Buzzer      │ aviso   │   pulsador    │   ISR
-                                           │ LCD 1602 I2C│ display │               │
+                                           │ OLED SSD1306│ display │               │
                                            └─────────────┘         └───────────────┘
 ```
 
@@ -98,7 +98,7 @@ La arquitectura es **distribuida**, repartiendo la carga entre dos nodos según 
   sistema —incluida la **distancia medida por el ultrasonido**— y lo muestra en pantalla
   superpuesto al video.
 - **Nodo de control (ESP32):** ejecuta el control en tiempo real —mueve los actuadores, lee los
-  sensores, gestiona la máquina de estados y la interrupción— y reporta estado a la PC y a la LCD.
+  sensores, gestiona la máquina de estados y la interrupción— y reporta estado a la PC y al OLED.
 - **Comunicación:** **USB-serie (cable)**. Se elige sobre WiFi por su **latencia baja y
   determinista** —crítica para el lazo de control visual—, porque el mismo cable **alimenta el
   ESP32** y sirve de **consola de depuración**, y porque elimina la configuración y los imprevistos
@@ -140,7 +140,7 @@ USB incluida— trabajen con una holgura simple, sin anillos rozantes.
 | **28BYJ-48 + ULN2003** | Eje de azimut (giro de la base, sector de ±180°). |
 | **Módulo láser** | Apuntado / "disparo" indicador hacia el blanco. |
 | **Buzzer** | Aviso sonoro cuando se alcanza el objetivo. |
-| **LCD 1602 (I2C)** | Muestra estado, modo, distancia, temperatura y mensajes. |
+| **OLED SSD1306 0.96" (I2C)** | Muestra estado, modo, distancia, temperatura y mensajes. Al ser un display gráfico (128x64) permite mostrar la distancia en número grande, iconos y barras de estado. |
 | **Relés** | *No se utilizan en esta versión.* Quedan documentados como reserva/expansión por si se incorpora un actuador externo en el futuro. |
 
 ### 5.1. El papel del MPU6050 (referencia de nivel)
@@ -192,7 +192,7 @@ El firmware se organiza como una **máquina de estados finitos (FSM)**:
 
 1. **HOMING / INICIO**
    Nivela el cañón con el MPU6050 (lleva la elevación a *pitch = 0°*) y fija el cero de azimut.
-   Inicializa sensores, LCD y el enlace serie con la PC.
+   Inicializa sensores, el OLED y el enlace serie con la PC.
 
 2. **AUTÓNOMO** *(modo por defecto)*
    La PC sigue al objetivo con la cámara y envía correcciones de apuntado → el ESP32 ajusta giro
@@ -256,10 +256,10 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 ### CU-01 — Puesta en marcha (homing)
 
 - **Disparador:** el operador energiza el sistema.
-- **Respuesta:** el ESP32 inicializa sensores, LCD y enlace serie con la PC → mueve el servo
+- **Respuesta:** el ESP32 inicializa sensores, el OLED y el enlace serie con la PC → mueve el servo
   hasta que el MPU6050 lee *pitch = 0°* (cañón horizontal) → fija el cero de azimut.
 - **Resultado:** ceros establecidos; el sistema queda en modo **AUTÓNOMO**, a la espera de un
-  objetivo. La LCD muestra el estado.
+  objetivo. El OLED muestra el estado.
 
 ### CU-02 — Seguimiento y disparo autónomo
 
@@ -268,14 +268,14 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
   envía correcciones por serie → la torreta gira (28BYJ-48) y eleva el cañón (SG90) hasta
   centrarlo → el HC-SR04 mide la distancia (corregida por la temperatura del DHT22) y el ESP32
   la reporta a la PC, que la muestra sobre el video.
-- **Resultado:** con el blanco **centrado y en rango**, se activan **láser + buzzer** y la LCD
+- **Resultado:** con el blanco **centrado y en rango**, se activan **láser + buzzer** y el OLED
   muestra *"Objetivo alcanzado"*.
 
 ### CU-03 — Objetivo centrado pero fuera de rango
 
 - **Disparador:** el blanco está centrado, pero la distancia medida excede el rango válido.
 - **Respuesta:** el sistema **no dispara**; continúa el seguimiento y reporta la distancia a la
-  PC y a la LCD.
+  PC y al OLED.
 - **Resultado:** el disparo queda inhibido hasta que el criterio físico de rango se cumpla
   (evita falsos positivos).
 
@@ -283,14 +283,14 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 
 - **Disparador:** el blanco sale del campo de visión (o la detección se pierde).
 - **Respuesta:** la PC deja de enviar correcciones; la torreta **conserva su última posición**
-  a la espera de readquirir el blanco. La LCD indica que no hay objetivo.
+  a la espera de readquirir el blanco. El OLED indica que no hay objetivo.
 - **Resultado:** al reaparecer el blanco, el seguimiento se reanuda (vuelve a CU-02).
 
 ### CU-05 — Conmutación de modo (AUTÓNOMO ⇄ MANUAL)
 
 - **Disparador:** el operador hace una **pulsación larga** del botón del joystick (atendida
   por la ISR).
-- **Respuesta:** la FSM conmuta de modo y la LCD informa el modo activo.
+- **Respuesta:** la FSM conmuta de modo y el OLED informa el modo activo.
 - **Resultado:** en MANUAL la cámara deja de comandar la torreta; en AUTÓNOMO el joystick deja
   de hacerlo.
 
@@ -299,7 +299,7 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 - **Disparador:** en modo MANUAL, el operador mueve el joystick y hace una **pulsación corta**
   para disparar.
 - **Respuesta:** el joystick comanda azimut y elevación; la pulsación corta activa
-  **láser + buzzer**. La distancia medida sigue mostrándose en la LCD y en la pantalla de la PC.
+  **láser + buzzer**. La distancia medida sigue mostrándose en el OLED y en la pantalla de la PC.
 - **Resultado:** disparo indicador bajo control humano directo.
 
 ### CU-07 — Límite del sector de giro
@@ -336,7 +336,7 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 | 5 | Sensor de temperatura y humedad DHT22 | 1 |
 | 6 | IMU MPU6050 | 1 |
 | 7 | Joystick analógico con pulsador | 1 |
-| 8 | Pantalla LCD 1602 (con módulo I2C) | 1 |
+| 8 | Pantalla OLED SSD1306 0.96" (I2C, 128x64) | 1 |
 | 9 | Módulo láser | 1 |
 | 10 | Buzzer | 1 |
 | 11 | Webcam (USB, montada sobre la torreta) | 1 |

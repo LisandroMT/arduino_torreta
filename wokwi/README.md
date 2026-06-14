@@ -32,12 +32,12 @@ La simulación arranca en HOMING (nivela el servo con el MPU6050) y pasa a AUTÓ
   sliders del acelerómetro: al arrancar, el servo busca pitch = 0.
 - **CU-02 Disparo autónomo:** clic en el HC-SR04 y fijá una distancia entre 20 y 200 cm.
   En el monitor serie escribí `A 200 5` (la torreta gira) y después `A 0 0` (blanco
-  centrado) → el LED "láser" y el buzzer se activan y la LCD muestra *OBJETIVO ALCANZADO*.
+  centrado) → el LED "láser" y el buzzer se activan y la pantalla OLED muestra *OBJETIVO ALCANZADO*.
 - **CU-03 Fuera de rango:** fijá la distancia del HC-SR04 en 300 cm y mandá `A 0 0` →
-  no dispara; la LCD sigue mostrando la distancia.
+  no dispara; la pantalla OLED sigue mostrando la distancia.
 - **CU-04 Blanco perdido:** mandá `L` → la torreta conserva su posición.
 - **CU-05 Conmutación de modo:** mantené apretado el botón del joystick > 0,8 s →
-  cambia a MANUAL (se ve en la LCD).
+  cambia a MANUAL (se ve en la pantalla OLED).
 - **CU-06 Disparo manual:** en MANUAL, mové el joystick (la torreta sigue) y hacé una
   pulsación corta → dispara.
 - **CU-07 Límite de sector:** en MANUAL, sostené el joystick hacia un lado: el azimut
