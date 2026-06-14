@@ -122,6 +122,10 @@ def add(solid, color, mat, name, *, loc=None, pieza=None):
 X_BODY_BACK = -35
 OLED_Z = 96       # altura del centro del OLED en la cara trasera
 
+# --- cámara Gadnic CAMWEB11: cilindro de pivote (sin el clip) ---
+CAM_BUJE_L = 15.0   # largo del cilindro de pivote, MEDIDO sobre la cámara real
+CAM_HOLG   = 0.8    # holgura total para que el cilindro entre y pivote libre
+
 
 # ============================================================================
 # PIEZA: BASE (esculpida de Fase 1 + cirugía funcional)
@@ -272,13 +276,16 @@ def construir_canon():
     arma += menton
 
     # ---- montaje de la cámara: 2 pestañas (horquilla) sobre el cañón ----
-    # la webcam trae su propio buje con hueco; estas 2 pestañas lo abrazan y
-    # un tornillo M3 pasante lo fija, permitiendo ajustar la inclinación
-    # (agarre móvil). Coaxiales con el cañón (la cámara mira a +X como el tubo).
-    # Mínimo material: no hay bandeja ni soporte que choque al elevar el cañón.
+    # La webcam Gadnic CAMWEB11, sin su clip, deja una oreja/cilindro de pivote
+    # de CAM_BUJE_L mm de largo con un agujero (medido sobre la cámara real).
+    # Estas 2 pestañas reemplazan el clip: abrazan ese cilindro y un tornillo M3
+    # pasante lo fija permitiendo ajustar la inclinación (agarre móvil). Coaxial
+    # con el cañón; sin bandeja que choque al elevar.
+    PEST_ESP = 3.0                              # espesor de cada pestaña
+    sy_pest = (CAM_BUJE_L + CAM_HOLG) / 2 + PEST_ESP / 2   # centro de cada pestaña
     for sy in (-1, 1):
-        oreja = Pos(16, 11 * sy, 21) * Box(12, 3, 22)
-        oreja -= Pos(16, 11 * sy, 28) * Rot(90, 0, 0) * Cylinder(radius=1.7, height=10)
+        oreja = Pos(16, sy_pest * sy, 21) * Box(14, PEST_ESP, 22)
+        oreja -= Pos(16, sy_pest * sy, 28) * Rot(90, 0, 0) * Cylinder(radius=1.7, height=PEST_ESP + 6)
         arma += oreja
 
     # ---- acople del horn del SG90 (cara derecha) + ranura ----
@@ -353,10 +360,10 @@ def componentes():
             COL["acero"], "metal", "HC-SR04 transductor", loc=loc_gun)
         add(us * Pos(13.2, 13 * sy, 0) * eje * Cylinder(radius=6.9, height=0.8),
             COL["malla"], "plastico", "HC-SR04 malla", loc=loc_gun)
-    # Webcam Gadnic: buje (eje de inclinación, en Y) abrazado por las 2
-    # pestañas, + cuerpo con la lente mirando a +X (coaxial con el cañón)
-    add(Pos(16, 0, 28) * Rot(90, 0, 0) * Cylinder(radius=6, height=16), COL["chip"],
-        "plastico", "Webcam buje", loc=loc_gun)
+    # Webcam Gadnic CAMWEB11: cilindro de pivote (CAM_BUJE_L de largo) en Y,
+    # abrazado por las 2 pestañas; cuerpo con la lente mirando a +X (coaxial).
+    add(Pos(16, 0, 28) * Rot(90, 0, 0) * Cylinder(radius=4, height=CAM_BUJE_L),
+        COL["chip"], "plastico", "Webcam buje", loc=loc_gun)
     add(Pos(16, 0, 40) * Box(30, 28, 16), COL["chip"], "plastico", "Webcam cuerpo",
         loc=loc_gun)
     add(Pos(32, 0, 40) * eje * Cylinder(radius=6.5, height=8), COL["panel"],
@@ -490,29 +497,58 @@ def main():
     render_explotado(OUT / "f2_explotado.png")
     print("renders ok")
 
-    # etiqueta GLB = "pieza__nombre": el visor HTML agrupa por pieza para explotar
+    # Mapeo componente -> pieza con la que se mueve (pan/tilt). Un PART es
+    # ESTRUCTURA imprimible si tiene p["pieza"] seteado; es COMPONENTE
+    # (electrónica/mecánica alojada) si p["pieza"] es None.
     COMP2PIEZA = [("28BYJ", "base"), ("ESP32", "tapa"), ("WROOM", "tapa"),
                   ("ULN2003", "tapa"), ("OLED", "cuerpo"), ("DHT22", "base"),
                   ("Buzzer", "base"), ("Joystick", "base"), ("SG90", "cuerpo"),
                   ("M5", "cuerpo"), ("KY-008", "canon_cuna"), ("GY-521", "canon_cuna"),
                   ("HC-SR04", "canon_cuna"), ("Webcam", "canon_cuna")]
-    grupos = {"base": [], "tapa": [], "cuerpo": [], "canon_cuna": []}
+    # grupos[pieza][tipo] -> lista de Compound. tipo: "estructura" | "componentes"
+    grupos = {pz: {"estructura": [], "componentes": []}
+              for pz in ("base", "tapa", "cuerpo", "canon_cuna")}
     for i, p in enumerate(PARTS):
         solids = p["solid"].solids() if hasattr(p["solid"], "solids") else [p["solid"]]
         c = Compound(children=list(solids))
         c.color = Color(p["color"])
+        es_componente = p["pieza"] is None
         pieza = p["pieza"] or next((pz for pref, pz in COMP2PIEZA
                                     if p["name"].startswith(pref)), "base")
-        c.label = f"{pieza}__{p['name']}_{i}"
-        grupos[pieza].append(c)
-    children = [c for cs in grupos.values() for c in cs]
+        tipo = "componentes" if es_componente else "estructura"
+        c.label = f"{p['name']}_{i}"     # nombre legible de cada sólido en Fusion
+        grupos[pieza][tipo].append(c)
+    children = [c for pz in grupos.values() for cs in pz.values() for c in cs]
     export_gltf(Compound(children=children), str(OUT / "torreta_fase2.glb"), binary=True)
-    export_step(Compound(children=children), str(OUT / "torreta_fase2.step"))
-    # un GLB por pieza: el visor HTML los carga como grupos explotables
-    # (el writer de OCCT descarta los nombres de nodo, así que el agrupado
-    # tiene que venir por archivo, no por etiqueta)
-    for g, cs in grupos.items():
-        export_gltf(Compound(children=cs), str(OUT / f"fase2_{g}.glb"), binary=True)
+
+    # STEP con JERARQUÍA NOMBRADA (Fusion la lee como componentes agrupados):
+    #   Torreta_fase2 → <Pieza> → estructura / electronica → <sólidos nombrados>
+    NOMBRE = {"base": "Base", "tapa": "Tapa_porta_electronica",
+              "cuerpo": "Cuerpo_pan", "canon_cuna": "Canon_cuna_tilt"}
+    SUBNOMBRE = {"estructura": "estructura_imprimible", "componentes": "electronica"}
+    ramas = []
+    for pz, tipos in grupos.items():
+        sub = []
+        for tipo, cs in tipos.items():
+            if not cs:
+                continue
+            g = Compound(children=cs)
+            g.label = SUBNOMBRE[tipo]
+            sub.append(g)
+        rama = Compound(children=sub)
+        rama.label = NOMBRE[pz]
+        ramas.append(rama)
+    arbol = Compound(children=ramas)
+    arbol.label = "Torreta_fase2"
+    export_step(arbol, str(OUT / "torreta_fase2.step"))
+    # GLB por (pieza × tipo): el visor los agrupa por pieza para explotar/articular
+    # y por tipo para el toggle "solo maqueta" (oculta los *_componentes).
+    # (el writer de OCCT descarta los nombres de nodo → el agrupado va por archivo)
+    for g, tipos in grupos.items():
+        for tipo, cs in tipos.items():
+            if cs:
+                export_gltf(Compound(children=cs),
+                            str(OUT / f"fase2_{g}_{tipo}.glb"), binary=True)
     pdir = OUT / "parts_fase2"
     pdir.mkdir(exist_ok=True)
     for nombre, s in PIEZAS.items():
