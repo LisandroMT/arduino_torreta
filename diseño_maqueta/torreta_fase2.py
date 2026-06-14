@@ -113,11 +113,14 @@ def add(solid, color, mat, name, *, loc=None, pieza=None):
     return solid
 
 
-# Marco del LCD: cara inclinada 35° del pod-consola sobre la pared 270°.
-# OJO: el hexágono tiene VÉRTICES en los múltiplos de 60° (a 240° hay una
-# punta que atravesaba la pantalla); las caras planas están en 30°+60k.
-# 270° es cara plana, libre de patas, y fuera del barrido de la mentonera.
-LOC_LCD = Rot(0, 0, 270) * Pos(85, 0, 31.5) * Rot(0, 35, 0)
+# El OLED SSD1306 0.96" se monta en la CARA TRASERA del cuerpo blindado (que
+# gira en pan): es la superficie grande y visible de atrás, hueca por dentro
+# para canalizar los cables del bus I2C hacia la base. Se atornilla por sus 4
+# agujeros M2 a postes-separadores (patrón ~23.5 x 23.5 mm), sin agregar carcasa.
+# Coordenadas en el marco del cuerpo (cara trasera en X = -35), z a la altura
+# del pivote para que el operador lo lea de frente.
+X_BODY_BACK = -35
+OLED_Z = 96       # altura del centro del OLED en la cara trasera
 
 
 # ============================================================================
@@ -136,16 +139,7 @@ def construir_base():
         estructura -= Pos(0, 17.5 * sx, 27) * Cylinder(radius=2.15, height=8)
     # ranura pasacables junto al muñón (el mazo baja del tambor)
     estructura -= Pos(-19, 0, 34) * Box(12, 16, 22)
-    # pod-consola del LCD sobre la CARA PLANA de 270°, elevado sobre las
-    # patas (z 12..36) y por debajo de la superficie biselada
-    pod = Pos(81, 0, 24) * Box(32, 86, 24)              # r 65..97
-    # cara inclinada descendiendo hacia afuera (estilo atril)
-    pod -= Pos(93, 0, 43) * Rot(0, 35, 0) * Box(42, 84, 28)
-    pod = Rot(0, 0, 270) * pod
-    estructura += pod
-    estructura -= LOC_LCD * Pos(0, 0, -4) * Box(38, 81, 10)    # marco del LCD
-    estructura -= LOC_LCD * Pos(0, 0, -10) * Box(32, 76, 14)   # bolsillo del PCB
-    estructura -= LOC_LCD * Pos(0, 0, -16) * Box(14, 30, 14)   # paso de cables
+    # (el OLED ya NO va en la base — se montó en la cara trasera de la cuna)
     # funda del joystick en la cara plana de 90°
     funda = Rot(0, 0, 90) * Pos(77, 0, 21) * Box(12, 40, 34)
     funda -= Rot(0, 0, 90) * Pos(78.5, 0, 23) * Box(12, 26.5 + HOLGURA, 34)
@@ -161,13 +155,7 @@ def construir_base():
 
     PIEZAS["base"] = estructura
     add(estructura, COL["cuerpo"], "plastico", "Base esculpida (hueca)", pieza="base")
-    for part, rol in partes:                          # chevrones amarillos
-        if rol == "accent":
-            # saltear el chevrón del sector 240°: ahí va el pod del LCD
-            c = part.bounding_box().center()
-            if abs(((math.degrees(math.atan2(c.Y, c.X)) - 240 + 180) % 360) - 180) < 25:
-                continue
-            add(part, COL["acento"], "emisivo", "chevron", pieza="base")
+    # (los chevrones amarillos de la base se quitaron por pedido)
 
 
 def construir_tapa():
@@ -221,6 +209,18 @@ def construir_cuerpo():
         cuerpo -= Pos(PX + 5.35 + dx, y_ear + 2, PZ) * Rot(90, 0, 0) * \
             Cylinder(radius=PILOTO / 2, height=6)
 
+    # ---- montaje del OLED en la cara trasera del cuerpo (-X) ----
+    # 4 postes-separadores con agujero piloto M2 (patrón ~23.5x23.5 mm) + un
+    # paso de cables central al hueco interno. Mínimo material, sin carcasa.
+    for sy in (-1, 1):
+        for sz in (-1, 1):
+            p = Pos(X_BODY_BACK - 2, 11.75 * sy, OLED_Z + 11.75 * sz) * Rot(0, 90, 0) * \
+                Cylinder(radius=2.6, height=6)
+            p -= Pos(X_BODY_BACK - 2, 11.75 * sy, OLED_Z + 11.75 * sz) * Rot(0, 90, 0) * \
+                Cylinder(radius=0.9, height=10)
+            cuerpo += p
+    cuerpo -= Pos(X_BODY_BACK, 0, OLED_Z) * Rot(0, 90, 0) * Cylinder(radius=5, height=14)
+
     PIEZAS["cuerpo"] = cuerpo
     add(cuerpo, COL["cuerpo"], "plastico", "Cuerpo blindado (hueco)",
         loc=loc_pan, pieza="cuerpo")
@@ -271,15 +271,15 @@ def construir_canon():
     menton += Pos(25, 0, -16) * Box(8, 10, 12)
     arma += menton
 
-    # ---- bandeja superior de la webcam, ELEVADA sobre columnas para pasar
-    # POR ENCIMA de las orejas del muñón al bascular (bandeja 64 > hueco 56) ----
-    bandeja = Pos(0, 0, 30.5) * Box(46, 64, 3)
+    # ---- montaje de la cámara: 2 pestañas (horquilla) sobre el cañón ----
+    # la webcam trae su propio buje con hueco; estas 2 pestañas lo abrazan y
+    # un tornillo M3 pasante lo fija, permitiendo ajustar la inclinación
+    # (agarre móvil). Coaxiales con el cañón (la cámara mira a +X como el tubo).
+    # Mínimo material: no hay bandeja ni soporte que choque al elevar el cañón.
     for sy in (-1, 1):
-        for dx in (-12, 12):
-            bandeja -= Pos(dx, 24 * sy, 30.5) * Box(5, 6, 5)
-        bandeja += Pos(-2, 18 * sy, 24) * Box(14, 10, 12)    # columnas a la cuna
-    bandeja += Pos(21, 0, 34) * Box(2.5, 64, 9)              # tope frontal
-    arma += bandeja
+        oreja = Pos(16, 11 * sy, 21) * Box(12, 3, 22)
+        oreja -= Pos(16, 11 * sy, 28) * Rot(90, 0, 0) * Cylinder(radius=1.7, height=10)
+        arma += oreja
 
     # ---- acople del horn del SG90 (cara derecha) + ranura ----
     arma -= Pos(5.35, 26, 0) * Box(5.2, 3, 18.5)
@@ -308,10 +308,7 @@ def componentes():
     uln = Pos(20, -20, 8.6)
     add(uln * Box(35, 27, 1.6), COL["pcb_verde"], "pcb", "ULN2003")
     add(uln * Pos(-6, 0, 2.8) * Box(7, 19, 4), COL["chip"], "plastico", "ULN2003 IC")
-    # LCD embutido
-    add(LOC_LCD * Pos(0, 0, -7) * Box(36, 80, 1.6), COL["pcb_verde"], "pcb", "LCD 1602 PCB")
-    add(LOC_LCD * Pos(0, 0, -4.5) * Box(30.5, 75, 5), COL["chip"], "plastico", "LCD bezel")
-    add(LOC_LCD * Pos(0, 0, -1.6) * Box(16, 64.5, 1), COL["lcd"], "emisivo", "LCD pantalla")
+    # (el OLED se montó en el tilt, ver --- cañón / cuna --- más abajo)
     # DHT22 / buzzer / joystick
     add(Rot(0, 0, 330) * Pos(66, 0, 22) * Box(7.7, 15.1, 25.1), COL["dht"],
         "plastico", "DHT22")
@@ -324,12 +321,21 @@ def componentes():
     add(joy * Pos(12, 0, 6) * Rot(0, 90, 0) * Cylinder(radius=1.8, height=8),
         COL["chip"], "plastico", "Joystick palanca")
     # --- cuerpo (pan) ---
-    sg = loc_pan * Pos(PX + 5.35, cfg.body.ear_gap_mm / 2 + cfg.body.ear_thickness_mm + 2, PZ) * Rot(-90, 0, 0) * Rot(0, 0, 90)
+    # eje de salida hacia ADENTRO (-Y, engrana la cuna); cuerpo hacia afuera
+    y_ear = cfg.body.ear_gap_mm / 2 + cfg.body.ear_thickness_mm / 2
+    sg = loc_pan * Pos(PX, y_ear + 23.5, PZ) * Rot(90, 0, 0) * Rot(0, 0, 90)
     add(Pos(0.55, 0, 11.35) * Box(22.5, 11.8, 22.7), COL["servo"], "plastico", "SG90", loc=sg)
     add(Pos(0.55, 0, 17.65) * Box(32.2, 11.8, 2.5), COL["servo"], "plastico", "SG90 aletas", loc=sg)
     add(Pos(0, 0, 24.7) * Cylinder(radius=5.9, height=4), COL["servo"], "plastico", "SG90 tapa", loc=sg)
+    add(Pos(0, 0, 28.5) * Cylinder(radius=2.3, height=4), COL["crema"], "plastico", "SG90 eje", loc=sg)
+    add(Pos(0, 0, 30.8) * Cylinder(radius=7, height=1.6), COL["crema"], "plastico", "SG90 horn", loc=sg)
     add(loc_pan * Pos(PX, -(cfg.body.ear_gap_mm / 2 + cfg.body.ear_thickness_mm + 1.5), PZ) *
         Rot(90, 0, 0) * Cylinder(radius=4.5, height=3), COL["alu"], "metal", "M5 cabeza")
+    # OLED SSD1306 0.96" atornillado a la cara trasera del cuerpo (mira a -X),
+    # apaisado (lado largo = Y horizontal); cables por el agujero central
+    add(loc_pan * Pos(X_BODY_BACK - 5, 0, OLED_Z) * Box(1.2, 27, 27), COL["pcb_azul"], "pcb", "OLED PCB")
+    add(loc_pan * Pos(X_BODY_BACK - 6.5, 0, OLED_Z + 3) * Box(1.5, 25.5, 15), COL["chip"], "plastico", "OLED vidrio")
+    add(loc_pan * Pos(X_BODY_BACK - 7.5, 0, OLED_Z + 3) * Box(0.6, 21.7, 11), COL["lcd"], "emisivo", "OLED pantalla")
     # --- cañón / cuna (tilt) ---
     # PCB bajo del eje para que el tubo de latón quede centrado en la salida
     add(Pos(124, 0, -4) * Box(18.5, 15.2, 1.6), COL["pcb_rojo"], "pcb", "KY-008",
@@ -347,11 +353,15 @@ def componentes():
             COL["acero"], "metal", "HC-SR04 transductor", loc=loc_gun)
         add(us * Pos(13.2, 13 * sy, 0) * eje * Cylinder(radius=6.9, height=0.8),
             COL["malla"], "plastico", "HC-SR04 malla", loc=loc_gun)
-    add(Pos(0, 0, 36.7) * Box(30, 60, 9.5), COL["chip"], "plastico",
-        "Webcam (generica)", loc=loc_gun)
-    add(Pos(16.5, 0, 36.7) * eje * Cylinder(radius=7, height=4), COL["panel"],
+    # Webcam Gadnic: buje (eje de inclinación, en Y) abrazado por las 2
+    # pestañas, + cuerpo con la lente mirando a +X (coaxial con el cañón)
+    add(Pos(16, 0, 28) * Rot(90, 0, 0) * Cylinder(radius=6, height=16), COL["chip"],
+        "plastico", "Webcam buje", loc=loc_gun)
+    add(Pos(16, 0, 40) * Box(30, 28, 16), COL["chip"], "plastico", "Webcam cuerpo",
+        loc=loc_gun)
+    add(Pos(32, 0, 40) * eje * Cylinder(radius=6.5, height=8), COL["panel"],
         "plastico", "Webcam barril", loc=loc_gun)
-    add(Pos(19, 0, 36.7) * eje * Cylinder(radius=4.5, height=1.2), COL["lente"],
+    add(Pos(37, 0, 40) * eje * Cylinder(radius=4.5, height=1.2), COL["lente"],
         "vidrio", "Webcam lente", loc=loc_gun)
 
 
@@ -482,7 +492,7 @@ def main():
 
     # etiqueta GLB = "pieza__nombre": el visor HTML agrupa por pieza para explotar
     COMP2PIEZA = [("28BYJ", "base"), ("ESP32", "tapa"), ("WROOM", "tapa"),
-                  ("ULN2003", "tapa"), ("LCD", "base"), ("DHT22", "base"),
+                  ("ULN2003", "tapa"), ("OLED", "cuerpo"), ("DHT22", "base"),
                   ("Buzzer", "base"), ("Joystick", "base"), ("SG90", "cuerpo"),
                   ("M5", "cuerpo"), ("KY-008", "canon_cuna"), ("GY-521", "canon_cuna"),
                   ("HC-SR04", "canon_cuna"), ("Webcam", "canon_cuna")]
