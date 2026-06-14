@@ -28,7 +28,7 @@ Guía de conexionado de la torreta sobre protoboard. El mapa de pines de este do
 
 | Componente | Pin del módulo | Pin ESP32 | Hilera | Alimentación |
 |---|---|---|---|---|
-| LCD 1602 I2C | SDA / SCL | GPIO21 / GPIO22 | protoboard | 5V |
+| OLED SSD1306 0.96" I2C | SDA / SCK (=SCL) | GPIO21 / GPIO22 | protoboard | 3.3V |
 | MPU6050 (GY-521) | SDA / SCL | GPIO21 / GPIO22 (mismo bus) | protoboard | 3.3V |
 | HC-SR04 | TRIG | GPIO5 | protoboard | 5V |
 | HC-SR04 | ECHO | GPIO18 **(vía divisor 1kΩ/2kΩ)** | protoboard | — |
@@ -37,7 +37,7 @@ Guía de conexionado de la torreta sobre protoboard. El mapa de pines de este do
 | Joystick | SW (pulsador / ISR) | GPIO23 | protoboard | — |
 | Servo SG90 | Señal (cable naranja) | GPIO13 | aire | **5V externa** |
 | ULN2003 | IN1 / IN2 / IN3 / IN4 | GPIO26 / GPIO25 / GPIO33 / GPIO32 | aire | **5V externa** |
-| Láser (KY-008) | S | GPIO19 | protoboard | — |
+| Láser (KY-008) | S / − (3 pines: el del medio NC) | GPIO19 / GND | protoboard | — |
 | Buzzer activo | + | GPIO27 | aire | — |
 
 **Pines prohibidos** (no usar aunque estén libres): GPIO0, 2, 12 y 15 son de *strapping* —
@@ -73,8 +73,8 @@ en el aire y se cablea con dupont hembra directo a cada módulo.
     Joystick VRx ────┤ GPIO34                           3V3 ├──── riel 3.3V
     Joystick VRy ────┤ GPIO35                           GND ├──── riel GND (azul)
      ULN2003 IN4 ────┤ GPIO32                        GPIO23 ├──── SW joystick (ISR)
-     ULN2003 IN3 ────┤ GPIO33                        GPIO22 ├──── SCL → LCD + MPU6050
-     ULN2003 IN2 ────┤ GPIO25                        GPIO21 ├──── SDA → LCD + MPU6050
+     ULN2003 IN3 ────┤ GPIO33                        GPIO22 ├──── SCL → OLED + MPU6050
+     ULN2003 IN2 ────┤ GPIO25                        GPIO21 ├──── SDA → OLED + MPU6050
      ULN2003 IN1 ────┤ GPIO26                        GPIO19 ├──── S láser KY-008
       Buzzer (+) ────┤ GPIO27                        GPIO18 ├◄─── divisor 1kΩ/2kΩ ◄── ECHO HC-SR04
  Servo (naranja) ────┤ GPIO13                         GPIO5 ├──── TRIG HC-SR04
@@ -86,12 +86,12 @@ en el aire y se cablea con dupont hembra directo a cada módulo.
 ### Distribución de alimentación
 
 ```
-FUENTE EXTERNA 5V ──► riel 5V ──┬── VCC LCD 1602
-                                ├── VCC HC-SR04
+FUENTE EXTERNA 5V ──► riel 5V ──┬── VCC HC-SR04
                                 ├── rojo servo SG90 (+ capacitor 220–470 µF a GND)
                                 └── (+) ULN2003
 
-ESP32 3V3 ────────► riel 3.3V ──┬── VCC MPU6050
+ESP32 3V3 ────────► riel 3.3V ──┬── VCC OLED SSD1306
+                                ├── VCC MPU6050
                                 ├── VCC DHT22
                                 └── VCC joystick
 
@@ -126,18 +126,20 @@ cable a la PC.
 - Sugerencia mecánica: una gota de silicona caliente o una brida entre placa y protoboard evita
   que el conjunto haga palanca cuando la torreta vibre. **Todavía no enchufar el USB.**
 
-### Paso 3 — Bus I2C (LCD + MPU6050)
+### Paso 3 — Bus I2C (OLED SSD1306 + MPU6050)
 
 Los dos comparten el bus: **SDA de ambos a GPIO21, SCL de ambos a GPIO22**.
 
-- LCD 1602: VCC a 5V, GND a masa.
+- OLED SSD1306: VCC a **3.3V**, GND a masa. *(Si el módulo rotula el reloj como `SCK`, es
+  lo mismo que `SCL` — va igual a GPIO22.)*
 - MPU6050: VCC a **3.3V**, GND a masa.
 
-Tienen direcciones distintas (LCD `0x27` o `0x3F`, MPU `0x68`), así que conviven sin conflicto.
+Tienen direcciones distintas (OLED `0x3C` —a veces `0x3D`—, MPU `0x68`), así que conviven sin
+conflicto en el mismo bus.
 
-> Nota: el backpack del LCD tiene pull-ups a 5V; en la práctica funciona directo con el ESP32
-> de forma confiable, pero si hay un level shifter bidireccional disponible, este es el lugar
-> para usarlo.
+> Nota: ambos son de 3.3V, así que el bus I2C trabaja a nivel del ESP32 sin level shifter.
+> El SSD1306 es gráfico de 128×64 px y se maneja con la librería `Adafruit_SSD1306` +
+> `Adafruit_GFX` (o `U8g2`) — no con `LiquidCrystal_I2C`.
 
 ### Paso 4 — HC-SR04 (con divisor en el ECHO)
 
@@ -171,8 +173,28 @@ ECHO ──[ 1kΩ ]──┬── GPIO18
 ### Paso 7 — Servo SG90 (elevación)
 
 - Marrón a GND, **rojo al riel de 5V externo** (no al ESP32), naranja a GPIO13 (dupont hembra).
-- Si hay un capacitor electrolítico (220–470µF), ponerlo entre 5V y GND cerca del servo,
-  respetando polaridad: absorbe los picos de arranque.
+
+**Capacitor de desacople (recomendado):** un electrolítico de **220–470 µF** absorbe los
+picos de corriente del servo al arrancar (lo que evita que la tensión se hunda). Va **en
+paralelo con la alimentación del servo**, lo más cerca posible de sus terminales:
+
+```
+  riel +5V ───┬──────────── rojo del servo
+              │
+            ┌─┴─┐
+            │ + │  capacitor electrolítico 220–470 µF
+            │   │  (tensión del capacitor ≥ 10 V)
+            │ − │
+            └─┬─┘
+              │
+  riel GND ───┴──────────── marrón del servo
+```
+
+⚠️ **Polaridad — es electrolítico, importa:** la **pata larga es `+`** y va al riel de **5V**;
+la **pata corta es `−`** y va al **GND**. El cuerpo del capacitor tiene una **franja impresa
+con signos `−`** que marca la pata negativa. Si lo conectás al revés, el capacitor se calienta,
+se hincha y puede **reventar** — verificá la polaridad antes de energizar. Elegí un capacitor de
+**al menos 10 V** (los de 6,3 V quedan justos para 5 V; 16 V o 25 V andan perfecto).
 
 ### Paso 8 — Stepper 28BYJ-48 + ULN2003 (azimut)
 
@@ -183,7 +205,11 @@ ECHO ──[ 1kΩ ]──┬── GPIO18
 
 ### Paso 9 — Láser y buzzer
 
-- Láser KY-008: S a GPIO19, `−` a masa (el pin del medio no se usa).
+- Láser KY-008: tiene **3 terminales físicos**, pero solo se usan 2 — `S` a
+  GPIO19 y `−` a masa. El **pin del medio queda al aire** (no está conectado a
+  nada internamente; es solo apoyo mecánico, por eso no tiene serigrafía). El
+  láser se alimenta por el propio pin `S`; a 3.3 V del GPIO enciende, aunque más
+  tenue que a 5 V.
 - Buzzer activo: `+` a GPIO27 (dupont hembra), `−` a masa.
 - Ambos consumen poco y van directo del GPIO; si el láser se ve débil, pasarlo a 5V con un
   transistor NPN como llave.
@@ -201,10 +227,11 @@ Con todo desconectado, revisar módulo por módulo:
 ### Paso 11 — Encendido por etapas y verificación
 
 1. Enchufar **solo el USB** (sin fuente externa). El LED del ESP32 enciende y nada calienta.
-   Tocar con el dedo el MPU y el LCD: tibio está bien; quemante es polaridad invertida —
+   Tocar con el dedo el MPU y el OLED: tibio está bien; quemante es polaridad invertida —
    desconectar ya.
-2. Cargar un sketch **I2C scanner**: debe reportar dos direcciones (`0x27`/`0x3F` y `0x68`).
-   Eso valida LCD y MPU6050 de una vez.
+2. Cargar un sketch **I2C scanner**: debe reportar dos direcciones (`0x3C` del OLED y `0x68`
+   del MPU6050).
+   Eso valida OLED y MPU6050 de una vez.
 3. Probar sensores por monitor serie: distancia del HC-SR04 (acercar la mano), temperatura del
    DHT22, valores X/Y del joystick (centro ≈ 2048) y el pulsador.
 4. Recién ahora conectar la **fuente externa de 5V** y probar actuadores de a uno: servo
