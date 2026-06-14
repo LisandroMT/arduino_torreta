@@ -54,8 +54,10 @@ cfg = Config.load()
 cfg.base.hex_across_flats_mm = 150   # interior con lugar para la electrónica
 cfg.base.height_mm = 42
 cfg.base.top_chamfer_mm = 7
-cfg.base.leg_length_mm = 42
+cfg.base.leg_length_mm = 35           # patas más cortas: estorban menos a la tapa
 cfg.base.leg_thickness_mm = 10
+cfg.base.leg_root_width_mm = 22       # y más angostas
+cfg.base.leg_tip_width_mm = 18
 cfg.neck.drum_dia_mm = 60
 cfg.neck.drum_height_mm = 22
 cfg.body.width_mm = 72
@@ -134,15 +136,46 @@ def construir_base():
     partes = p_base.build(cfg)                       # [(solid, rol)] esculpido
     estructura = _fuse([p for p in partes if p[1] == "body"])
 
-    # cavidad interior (queda piso del socket de 2 mm en z 26..28)
-    estructura -= Pos(0, 0, 14.5) * extrude(RegularPolygon(
-        (140 - 6) / 2 / math.cos(math.pi / 6), 6), 23)
-    # montaje del 28BYJ-48 bajo el techo de la cavidad
-    estructura -= Pos(0, 0, 27) * Cylinder(radius=3.6, height=8)        # eje Ø7.2
+    # --- cámara interna ABIERTA POR ABAJO: la electrónica se accede quitando
+    #     la tapa inferior. La base queda como un "vaso" invertido (paredes +
+    #     techo), con un rebaje donde encastra la tapa y un tope donde apoya. ---
+    # radios CIRCUNSCRITOS (la base tiene circunradio ~86.6); paredes ~11 mm
+    R_CAM = 74.0                 # cámara interna (deja pared ~12 mm a la base)
+    R_REB = 80.0                 # rebaje de encastre de la tapa (escalón de 6 mm)
+    R_TORN = 70.0                # radio de los tornillos de la tapa (en la pared)
+    Z_TECHO = 38.0               # cara inferior del techo (queda techo 38..42)
+    Z_TOPE = 5.0                 # altura del tope donde apoya la tapa
+    # cámara (de Z_TOPE hasta el techo)
+    estructura -= Pos(0, 0, Z_TOPE) * extrude(RegularPolygon(R_CAM, 6), Z_TECHO - Z_TOPE)
+    # rebaje inferior más ancho (de -1 a Z_TOPE): deja un escalón-tope en Z_TOPE
+    estructura -= Pos(0, 0, -1) * extrude(RegularPolygon(R_REB, 6), Z_TOPE + 1)
+    # montaje del 28BYJ-48 colgado del TECHO (eje Ø7.2 pasa al cuerpo, M4 brida)
+    estructura -= Pos(0, 0, Z_TECHO) * Cylinder(radius=3.6, height=10)
     for sx in (-1, 1):
-        estructura -= Pos(0, 17.5 * sx, 27) * Cylinder(radius=2.15, height=8)
-    # ranura pasacables junto al muñón (el mazo baja del tambor)
-    estructura -= Pos(-19, 0, 34) * Box(12, 16, 22)
+        estructura -= Pos(0, 17.5 * sx, Z_TECHO) * Cylinder(radius=2.15, height=10)
+    # 3 bosses de tornillo para la tapa, pegados a la pared de la cámara
+    # (a 90/210/330°, entre las patas para acceder al atornillar desde abajo)
+    for ang in (90, 210, 330):
+        a = math.radians(ang)
+        estructura += Pos(R_TORN * math.cos(a), R_TORN * math.sin(a), Z_TOPE / 2 + 1) * \
+            Cylinder(radius=4.5, height=Z_TOPE + 2)
+        estructura -= Pos(R_TORN * math.cos(a), R_TORN * math.sin(a), 0) * \
+            Cylinder(radius=PILOTO / 2, height=Z_TOPE + 4)
+    # RANURA ARQUEADA pasacables (cable management de plataforma giratoria):
+    # un semi-anillo concéntrico al eje por donde el cable del cuerpo se DESLIZA
+    # al girar el azimut, sin pellizcarse. Cubre el semicírculo x<0 (~180° de
+    # giro); el semicírculo x>0 queda sólido y hace de puente techo↔centro.
+    # Anillo r6..14 (NO llega a los M4 a r17.5, que quedan en el anillo sólido
+    # exterior → el agarre del motor no se debilita). Arco de 270°: el cable se
+    # desliza por aquí en TODO el rango de giro de ±90° sin pellizcarse.
+    from build123d import Polygon as _Poly
+    anillo = Pos(0, 0, Z_TECHO) * Cylinder(radius=14, height=14) - \
+        Pos(0, 0, Z_TECHO) * Cylinder(radius=6, height=16)
+    # puente sólido de 90° en +X (sector ±45°): conecta el centro (que guía el
+    # eje) con el techo exterior y mantiene todo como un solo sólido
+    puente = Pos(0, 0, Z_TECHO) * extrude(_Poly((0, 0), (120, 120), (120, -120),
+                                                 align=None), 16)
+    estructura -= (anillo - puente)
     # (el OLED ya NO va en la base — se montó en la cara trasera de la cuna)
     # funda del joystick en la cara plana de 90°
     funda = Rot(0, 0, 90) * Pos(77, 0, 21) * Box(12, 40, 34)
@@ -163,15 +196,34 @@ def construir_base():
 
 
 def construir_tapa():
-    tapa = extrude(RegularPolygon(141 / 2 / math.cos(math.pi / 6), 6), 2.5)
+    # placa que ENCASTRA en el rebaje inferior de la base (R_REB=80, holgura 0.5)
+    # y apoya contra el tope a Z_TOPE=5. Espesor 4 mm (z0..4).
+    R_TORN = 70.0
+    tapa = extrude(RegularPolygon(79.5, 6), 4)
+    # muescas que COPIAN la forma de las patas (en 60/180/300°, donde el trípode
+    # invade el área de la tapa) para que la tapa encaje alrededor de las patas
+    # sin chocar al montarla. Ancho = pata (22) + holgura; radial de r38 hacia afuera.
+    for ang in (60, 180, 300):
+        a = math.radians(ang)
+        tapa -= Pos(64 * math.cos(a), 64 * math.sin(a), 2) * Rot(0, 0, ang) * \
+            Box(42, 24, 12)              # cubre la pata (r45..80) con holgura
+    # orejas de tornillo que coinciden con los 3 bosses de la base (90/210/330°)
+    for ang in (90, 210, 330):
+        a = math.radians(ang)
+        tapa += Pos(R_TORN * math.cos(a), R_TORN * math.sin(a), 2) * Cylinder(radius=5, height=4)
+        tapa -= Pos(R_TORN * math.cos(a), R_TORN * math.sin(a), 0) * \
+            Cylinder(radius=1.7, height=8)            # paso del tornillo M3
+        tapa -= Pos(R_TORN * math.cos(a), R_TORN * math.sin(a), 0) * \
+            Cylinder(radius=3.4, height=2.4)          # avellanado de la cabeza
+    # bosses de la electrónica (ESP32 y ULN2003) hacia ARRIBA (a la cámara)
     for cx, cy, dx, dy in ((-18, -14, 48, 23), (20, -20, 35, 27)):
         for sx in (-1, 1):
             for sy in (-1, 1):
-                b = Pos(cx + sx * dx / 2, cy + sy * dy / 2, 4.75) * Cylinder(radius=3, height=4.5)
-                b -= Pos(cx + sx * dx / 2, cy + sy * dy / 2, 5) * Cylinder(radius=PILOTO / 2, height=5)
+                b = Pos(cx + sx * dx / 2, cy + sy * dy / 2, 6.25) * Cylinder(radius=3, height=4.5)
+                b -= Pos(cx + sx * dx / 2, cy + sy * dy / 2, 6.5) * Cylinder(radius=PILOTO / 2, height=5)
                 tapa += b
     PIEZAS["tapa"] = tapa
-    add(tapa, COL["panel"], "plastico", "Tapa porta-electronica", pieza="tapa")
+    add(tapa, COL["panel"], "plastico", "Tapa inferior porta-electronica", pieza="tapa")
 
 
 # ============================================================================
@@ -182,19 +234,23 @@ def construir_cuerpo():
     cuerpo = _fuse([p for p in partes if p[1] == "body"])
 
     # eje impreso -> muñón-rodamiento: agujero en D para el eje del stepper
-    d_hole = (Cylinder(radius=(5 + 0.15) / 2, height=14) &
-              Box(7, 3 + 0.15, 14))
-    cuerpo -= Pos(0, 0, 34) * d_hole
+    d_hole = (Cylinder(radius=(5 + 0.15) / 2, height=16) &
+              Box(7, 3 + 0.15, 16))
+    cuerpo -= Pos(0, 0, 44) * d_hole          # z36..52: recibe el eje del motor (z38..48)
 
-    # ahuecado: tambor hueco DEJANDO el piso que une el eje motriz (z 41..48)
-    cuerpo -= Pos(0, 0, 57) * Cylinder(radius=23, height=18)
-    # ranura pasacables a través del piso del tambor (alinea con la base en pan=0)
-    cuerpo -= Pos(-19, 0, 50) * Box(12, 16, 20)
+    # ahuecado del tambor: el hueco TERMINA en z62, dejando macizo el tope del
+    # tambor (z62..65). El vaciado de la cuña arranca recién en z74. Entre z62 y
+    # z74 queda un BLOQUE SÓLIDO de Ø60 que une firmemente el tambor giratorio
+    # con el cuerpo (transmite el torque del azimut sin pestañas frágiles).
+    cuerpo -= Pos(0, 0, 55) * Cylinder(radius=23, height=14)            # tambor hueco z48..62
     from build123d import Plane, Polygon
     z0 = 42 + cfg.neck.drum_height_mm                                   # 64
-    inner = Plane.XZ * Polygon((-31, z0 - 4), (29, z0 - 4), (29, z0 + 50),
-                               (-31, z0 + 74), align=None)
+    inner = Plane.XZ * Polygon((-31, z0 + 10), (29, z0 + 10), (29, z0 + 50),
+                               (-31, z0 + 74), align=None)              # vaciado cuña desde z74
     cuerpo -= Pos(0, 32, 0) * extrude(inner, amount=64)
+    # pasacables: CERCA DEL EJE (r=10) para minimizar el barrido del cable al
+    # girar (evita el efecto guillotina) y alinear con la ranura r6..14 de la base.
+    cuerpo -= Pos(-10, 0, 58) * Box(10, 8, 40)                         # z38..78, angosto p/ giro ±90°
     # (la extrusión de Plane.XZ va hacia -Y: queda centrada con el Pos previo)
 
     # zócalo de la antena: con el cuerpo agrandado, el techo inclinado queda
@@ -228,10 +284,9 @@ def construir_cuerpo():
     PIEZAS["cuerpo"] = cuerpo
     add(cuerpo, COL["cuerpo"], "plastico", "Cuerpo blindado (hueco)",
         loc=loc_pan, pieza="cuerpo")
-    for part, rol in partes:
-        if rol == "accent":
-            add(part, COL["acento"], "emisivo", "acento_cuerpo",
-                loc=loc_pan, pieza="cuerpo")
+    # (se quitaron los acentos decorativos del cuerpo —franjas y caja de
+    #  munición de Fase 1—: al ahuecar el cuerpo quedaban metidos dentro del
+    #  hueco como tabiques amarillos sin función)
 
 
 # ============================================================================
@@ -305,10 +360,14 @@ def construir_canon():
 def componentes():
     eje = Rot(0, 90, 0)
     # --- base ---
-    add(Pos(0, 0, 15.5) * Cylinder(radius=14, height=19), COL["acero"], "metal", "28BYJ-48")
-    add(Pos(0, 0, 25.5) * Box(7, 35, 1), COL["acero"], "metal", "28BYJ-48 brida")
-    add(Pos(0, 0, 30) * Cylinder(radius=2.5, height=10), COL["alu"], "metal", "28BYJ-48 eje")
-    add(Pos(-15.5, 0, 16) * Box(6, 14.6, 16.5), COL["servo"], "plastico", "28BYJ-48 cables")
+    # 28BYJ-48: el EJE va en r=0 (eje de giro de la torreta), pero el CUERPO Ø28
+    # está DESPLAZADO 8 mm del eje (el eje no está en el centro del cuerpo).
+    # La brida (2 M4 a 35 mm) se atornilla bajo el techo (z38); el cuerpo cuelga
+    # en la cavidad; el eje sube y encastra en el agujero en D del cuerpo (z38..48).
+    add(Pos(-8, 0, 28.5) * Cylinder(radius=14, height=19), COL["acero"], "metal", "28BYJ-48")      # cuerpo z19..38, descentrado
+    add(Pos(0, 0, 37.4) * Box(8, 35, 1.2), COL["acero"], "metal", "28BYJ-48 brida")                 # brida con M4 a ±17.5
+    add(Pos(0, 0, 43) * Cylinder(radius=2.5, height=10), COL["alu"], "metal", "28BYJ-48 eje")        # eje r=0, z38..48
+    add(Pos(-20, 14, 28) * Box(14.6, 6, 16.5), COL["servo"], "plastico", "28BYJ-48 cables")          # cables del lado del cuerpo
     esp = Pos(-18, -14, 8.6)
     add(esp * Box(27.9, 54.4, 1.6), COL["pcb_esp"], "pcb", "ESP32 DevKit")
     add(esp * Pos(0, -12, 2.3) * Box(18, 25.5, 3.1), COL["acero"], "metal", "WROOM-32")
