@@ -41,7 +41,8 @@ La simulación arranca en HOMING (nivela el servo con el MPU6050) y pasa a AUTÓ
 - **CU-06 Disparo manual:** en MANUAL, mové el joystick (la torreta sigue) y hacé una
   pulsación corta → dispara.
 - **CU-07 Límite de sector:** en MANUAL, sostené el joystick hacia un lado: el azimut
-  avanza hasta ±180° (±2048 pasos) y satura ahí.
+  avanza hasta ±90° (±1024 pasos) y satura ahí (el rango que la ranura del cable permite
+  sin pellizcarlo).
 - **Compensación térmica:** clic en el DHT22 y cambiá la temperatura: la distancia
   reportada (`EST;...;dist=...`) varía levemente con la misma distancia física —
   es la corrección v(T) actuando.

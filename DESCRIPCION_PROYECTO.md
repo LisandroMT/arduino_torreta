@@ -43,7 +43,7 @@ manual y autónoma.
 - Incorporar **al menos una rutina de servicio de interrupción** (pulsador del joystick).
 - Detectar y **seguir un objetivo móvil** en tiempo real mediante visión por computadora (OpenCV).
 - Dotar a la torreta de **dos grados de libertad**: rotación de la base sobre su propio eje
-  (azimut, sector de ±180°) y elevación del cañón (tilt).
+  (azimut, sector de ±90° = 180° de barrido) y elevación del cañón (tilt).
 - Medir la **distancia al objetivo** con un sensor ultrasónico y aplicar **compensación térmica**
   realimentando la velocidad del sonido con la temperatura medida en tiempo real.
 - Implementar **fusión de sensores**: combinar los ángulos e identidad de la cámara con el rango
@@ -56,8 +56,9 @@ manual y autónoma.
 
 ### 2.3. Alcance
 
-El sistema opera en un volumen definido por el giro de la base en un sector de ±180° (azimut)
-—acotado para que el cableado de la torreta no se enrede—, un rango de elevación acotado por el
+El sistema opera en un volumen definido por el giro de la base en un sector de ±90° (azimut,
+180° de barrido) —acotado para que el cableado, que se canaliza por una ranura arqueada
+concéntrica al eje, no se pellizque (efecto guillotina) al girar—, un rango de elevación acotado por el
 servomotor (sector útil del cañón) y distancias de medición de ~2 cm a ~400 cm (límites del
 sensor HC-SR04). El seguimiento de objetivos opera dentro del campo de
 visión de la cámara. El "disparo" es **indicador** (láser + buzzer): **no existe proyectil
@@ -102,7 +103,7 @@ La arquitectura es **distribuida**, repartiendo la carga entre dos nodos según 
 - **Comunicación:** **USB-serie (cable)**. Se elige sobre WiFi por su **latencia baja y
   determinista** —crítica para el lazo de control visual—, porque el mismo cable **alimenta el
   ESP32** y sirve de **consola de depuración**, y porque elimina la configuración y los imprevistos
-  de la red. El enredo de cables se evita **acotando el azimut a un sector de ±180°**; esta misma
+  de la red. El enredo de cables se evita **acotando el azimut a un sector de ±90°**; esta misma
   restricción habilita montar la webcam USB sobre la torreta.
 
 ---
@@ -111,7 +112,7 @@ La arquitectura es **distribuida**, repartiendo la carga entre dos nodos según 
 
 | Eje | Movimiento | Actuador | Característica |
 |-----|------------|----------|----------------|
-| **Azimut** | Giro de la base sobre su propio eje (sector de ±180°) | **28BYJ-48** + driver **ULN2003** | Paso a paso: la posición se conoce contando pasos (lazo abierto preciso) |
+| **Azimut** | Giro de la base sobre su propio eje (sector de ±90°) | **28BYJ-48** + driver **ULN2003** | Paso a paso: la posición se conoce contando pasos (lazo abierto preciso) |
 | **Elevación (tilt)** | El cañón sube y baja | **Servo SG90** | Posición por ángulo comandado; su cero se corrige con el MPU6050 |
 
 Montados **coaxialmente con el cañón** (apuntan a donde apunta la torreta):
@@ -121,7 +122,7 @@ Montados **coaxialmente con el cañón** (apuntan a donde apunta la torreta):
 - **Módulo láser** en la punta del cañón → indicador de apuntado / "disparo".
 - **Sensor ultrasónico HC-SR04** → mide la distancia a lo que el cañón tiene enfrente.
 
-El giro acotado del azimut (±180°) permite que todos los cables que suben a la torreta —webcam
+El giro acotado del azimut (±90°) permite que todos los cables que suben a la torreta —webcam
 USB incluida— trabajen con una holgura simple, sin anillos rozantes.
 
 ---
@@ -137,7 +138,7 @@ USB incluida— trabajen con una holgura simple, sin anillos rozantes.
 | **MPU6050 (IMU)** | Acelerómetro + giróscopo de 6 ejes. Provee la **referencia absoluta de elevación** para nivelar/centrar el cañón. |
 | **Joystick + pulsador** | Control manual del apuntado y **fuente de la interrupción por hardware (ISR)**. |
 | **Servo SG90** | Eje de elevación (sube/baja el cañón). |
-| **28BYJ-48 + ULN2003** | Eje de azimut (giro de la base, sector de ±180°). |
+| **28BYJ-48 + ULN2003** | Eje de azimut (giro de la base, sector de ±90°). |
 | **Módulo láser** | Apuntado / "disparo" indicador hacia el blanco. |
 | **Buzzer** | Aviso sonoro cuando se alcanza el objetivo. |
 | **OLED SSD1306 0.96" (I2C)** | Muestra estado, modo, distancia, temperatura y mensajes. Al ser un display gráfico (128x64) permite mostrar la distancia en número grande, iconos y barras de estado. |
@@ -304,7 +305,8 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 
 ### CU-07 — Límite del sector de giro
 
-- **Disparador:** el seguimiento (o el joystick) lleva el azimut al borde del sector de ±180°.
+- **Disparador:** el seguimiento (o el joystick) lleva el azimut al borde del sector de ±90°
+  (el límite que la ranura arqueada del cable permite girar sin pellizcarlo).
 - **Respuesta:** el ESP32 **satura el movimiento en el límite** (no lo sobrepasa), protegiendo
   el cableado de la torreta.
 - **Resultado:** el blanco solo puede seguirse dentro del sector útil; fuera de él aplica CU-04.

@@ -30,7 +30,7 @@ const int PIN_BUZZER = 27;
 const float RANGO_MIN_CM    = 20.0;   // criterio de "objetivo en rango"
 const float RANGO_MAX_CM    = 200.0;
 const long  PASOS_POR_VUELTA = 4096;  // 28BYJ-48 en medio paso
-const long  LIMITE_AZIMUT   = PASOS_POR_VUELTA / 2;  // sector ±180° (CU-07)
+const long  LIMITE_AZIMUT   = PASOS_POR_VUELTA / 4;  // ±90° = 180° barrido (CU-07): la ranura del cable evita guillotina
 const int   EL_MIN = 0, EL_MAX = 90;  // recorrido útil del servo
 const unsigned long T_PULSACION_LARGA_MS = 800;
 const unsigned long T_COOLDOWN_DISPARO_MS = 2000;
@@ -101,7 +101,7 @@ float leerPitch() {
 
 // ----------------------------- Actuadores ----------------------------------
 void moverAzimut(long pasosRelativos) {
-  // CU-07: el azimut satura en el límite del sector ±180°
+  // CU-07: el azimut satura en el límite del sector ±90°
   long destino = constrain(stepper.targetPosition() + pasosRelativos,
                            -LIMITE_AZIMUT, LIMITE_AZIMUT);
   stepper.moveTo(destino);
