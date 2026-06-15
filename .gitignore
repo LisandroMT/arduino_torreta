@@ -11,3 +11,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Editor (config personal)
+.vscode/

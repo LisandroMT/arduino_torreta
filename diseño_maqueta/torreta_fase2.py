@@ -177,9 +177,10 @@ def construir_base():
                                                  align=None), 16)
     estructura -= (anillo - puente)
     # (el OLED ya NO va en la base — se montó en la cara trasera de la cuna)
-    # funda del joystick en la cara plana de 90°
-    funda = Rot(0, 0, 90) * Pos(77, 0, 21) * Box(12, 40, 34)
-    funda -= Rot(0, 0, 90) * Pos(78.5, 0, 23) * Box(12, 26.5 + HOLGURA, 34)
+    # funda del joystick KY-023 (PCB real 39.4 x 27.6, palanca saliendo radial)
+    # el lado de 39.4 va tangencial (Y local), 27.6 en altura (Z); pocket abierto al exterior
+    funda = Rot(0, 0, 90) * Pos(76, 0, 21) * Box(14, 46, 36)
+    funda -= Rot(0, 0, 90) * Pos(78, 0, 21) * Box(14, 40 + HOLGURA, 30 + HOLGURA)
     estructura += funda
     # ventilación del DHT22 (cara plana de 330°)
     for i in range(5):
@@ -269,17 +270,21 @@ def construir_cuerpo():
         cuerpo -= Pos(PX + 5.35 + dx, y_ear + 2, PZ) * Rot(90, 0, 0) * \
             Cylinder(radius=PILOTO / 2, height=6)
 
-    # ---- montaje del OLED en la cara trasera del cuerpo (-X) ----
-    # 4 postes-separadores con agujero piloto M2 (patrón ~23.5x23.5 mm) + un
-    # paso de cables central al hueco interno. Mínimo material, sin carcasa.
+    # ---- montaje EMBUTIDO del OLED en la cara trasera del cuerpo (-X) ----
+    # El display se coloca DESDE ADENTRO: la pantalla asoma por una ventana
+    # pasante de su tamaño (35x23) y el PCB + el "agarre" + los cables quedan
+    # ocultos dentro del cuerpo. 4 bosses internos (patrón 30x28, centro a
+    # centro) con piloto M2 lo fijan por dentro; no hay tornillos a la vista.
+    OLED_VENT_Y, OLED_VENT_Z = 35.0, 23.0       # ventana = pantalla visible
+    OLED_HOLE_Y, OLED_HOLE_Z = 30.0, 28.0       # patrón de agujeros (centro a centro)
+    cuerpo -= Pos(X_BODY_BACK, 0, OLED_Z) * Box(16, OLED_VENT_Y, OLED_VENT_Z)
     for sy in (-1, 1):
         for sz in (-1, 1):
-            p = Pos(X_BODY_BACK - 2, 11.75 * sy, OLED_Z + 11.75 * sz) * Rot(0, 90, 0) * \
-                Cylinder(radius=2.6, height=6)
-            p -= Pos(X_BODY_BACK - 2, 11.75 * sy, OLED_Z + 11.75 * sz) * Rot(0, 90, 0) * \
-                Cylinder(radius=0.9, height=10)
-            cuerpo += p
-    cuerpo -= Pos(X_BODY_BACK, 0, OLED_Z) * Rot(0, 90, 0) * Cylinder(radius=5, height=14)
+            yc = OLED_HOLE_Y / 2 * sy
+            zc = OLED_Z + OLED_HOLE_Z / 2 * sz
+            boss = Pos(X_BODY_BACK + 4, yc, zc) * Rot(0, 90, 0) * Cylinder(radius=2.6, height=8)
+            boss -= Pos(X_BODY_BACK + 7, yc, zc) * Rot(0, 90, 0) * Cylinder(radius=0.9, height=8)
+            cuerpo += boss
 
     PIEZAS["cuerpo"] = cuerpo
     add(cuerpo, COL["cuerpo"], "plastico", "Cuerpo blindado (hueco)",
@@ -301,24 +306,29 @@ def construir_canon():
     recamara = Pos(19, 0, 0) * eje * Cylinder(radius=13, height=22)
     tubo = Pos(74, 0, 0) * eje * Cylinder(radius=10, height=92)
     arma += recamara + tubo
-    for xg in (52, 70, 88):                       # ranuras térmicas
-        arma -= Pos(xg, 0, 0) * eje * (Cylinder(radius=10.6, height=2.2)
-                                       - Cylinder(radius=9.2, height=2.4))
+    # (se quitaron las ranuras térmicas decorativas: eran surcos externos de
+    # ~0.8 mm que un chequeador de espesor marca como pared fina —aunque debajo
+    # hay ~3 mm—. Sin ellas el tubo queda liso con pared pareja de 3.5 mm.)
     freno = Pos(128, 0, 0) * eje * Cylinder(radius=12, height=18)
     for sy in (-1, 1):                            # venteos laterales del freno
         freno -= Pos(128, 9 * sy, 0) * Box(10, 6, 5)
     arma += freno
-    # interior: conducto Ø17 hasta la boca, salida Ø7.4 (el KY-008 entra
-    # por la cuna y queda alojado en la punta, con la lente asomando)
-    arma -= Pos(75, 0, 0) * eje * Cylinder(radius=8.5, height=120)
+    # interior: conducto Ø13 hasta la boca, salida Ø7.4 (el KY-008 —tubo Ø6.5—
+    # entra por la cuna y queda alojado en la punta, con la lente asomando).
+    # Ø13 (antes Ø17) deja pared de tubo ~3.5 mm (antes 1.5, y 0.7 en las ranuras)
+    arma -= Pos(75, 0, 0) * eje * Cylinder(radius=6.5, height=120)
     arma -= Pos(135.2, 0, 0) * eje * Cylinder(radius=3.7, height=6)
 
     # ---- cuna hueca (pocket de cables + GY-521) ----
     arma -= Pos(0, 0, -6) * Box(30, 40, 30)
     gy_boss = Pos(-6, 0, -19) * Box(24, 20, 4)
-    for dy in (-7.6, 7.6):
+    for dy in (-7.5, 7.5):                  # MPU6050: agujeros a 15 mm centro a centro
         gy_boss -= Pos(-6, dy, -18.5) * Cylinder(radius=PILOTO / 2, height=5)
     arma += gy_boss
+    # ventana trasera de la cuna (cara -X): alivia peso y da acceso al MPU6050.
+    # Deja marco perimetral (~10 mm a los lados, ~5 mm abajo, ~4 arriba) y NO
+    # toca el boss del MPU (z<-16) ni las paredes laterales que llegan al pivote.
+    arma -= Pos(-17, 0, -3.5) * Box(12, 32, 19)
 
     # ---- mentonera del HC-SR04, colgada de la cuna por cartelas + espina ----
     menton = Pos(29, 0, -33) * Box(3, 52, 26)
@@ -338,9 +348,15 @@ def construir_canon():
     # con el cañón; sin bandeja que choque al elevar.
     PEST_ESP = 3.0                              # espesor de cada pestaña
     sy_pest = (CAM_BUJE_L + CAM_HOLG) / 2 + PEST_ESP / 2   # centro de cada pestaña
+    R_PEST = 7.0                                # radio del lomo redondeado (= medio ancho)
     for sy in (-1, 1):
-        oreja = Pos(16, sy_pest * sy, 21) * Box(14, PEST_ESP, 22)
-        oreja -= Pos(16, sy_pest * sy, 28) * Rot(90, 0, 0) * Cylinder(radius=1.7, height=PEST_ESP + 6)
+        yc = sy_pest * sy
+        # tramo recto desde el cañón hasta el eje del tornillo (z10..28) ...
+        oreja = Pos(16, yc, 19) * Box(2 * R_PEST, PEST_ESP, 18)
+        # ... rematado por un lomo SEMICIRCULAR centrado en el agujero (z28),
+        # para que la pestaña deje de ser una placa rectangular
+        oreja += Pos(16, yc, 28) * Rot(90, 0, 0) * Cylinder(radius=R_PEST, height=PEST_ESP)
+        oreja -= Pos(16, yc, 28) * Rot(90, 0, 0) * Cylinder(radius=1.7, height=PEST_ESP + 6)
         arma += oreja
 
     # ---- acople del horn del SG90 (cara derecha) + ranura ----
@@ -380,11 +396,12 @@ def componentes():
         "plastico", "DHT22")
     add(Rot(0, 0, 30) * Pos(66, 0, 22) * Rot(0, 90, 0) * Cylinder(radius=6, height=9.5),
         COL["chip"], "plastico", "Buzzer")
-    joy = Rot(0, 0, 90) * Pos(79.5, 0, 19)
-    add(joy * Box(7, 26, 32), COL["pcb_rojo"], "pcb", "Joystick PCB")
-    add(joy * Pos(6, 0, 6) * Rot(0, 90, 0) * Cylinder(radius=9, height=6),
+    # KY-023 real: PCB 39.4 x 27.6, palanca saliendo en +X local (radial)
+    joy = Rot(0, 0, 90) * Pos(79.5, 0, 21)
+    add(joy * Box(8, 39, 27), COL["pcb_rojo"], "pcb", "Joystick PCB")
+    add(joy * Pos(7, 0, 0) * Rot(0, 90, 0) * Cylinder(radius=9, height=6),
         COL["chip"], "plastico", "Joystick domo")
-    add(joy * Pos(12, 0, 6) * Rot(0, 90, 0) * Cylinder(radius=1.8, height=8),
+    add(joy * Pos(13, 0, 0) * Rot(0, 90, 0) * Cylinder(radius=1.8, height=8),
         COL["chip"], "plastico", "Joystick palanca")
     # --- cuerpo (pan) ---
     # eje de salida hacia ADENTRO (-Y, engrana la cuna); cuerpo hacia afuera
@@ -397,11 +414,12 @@ def componentes():
     add(Pos(0, 0, 30.8) * Cylinder(radius=7, height=1.6), COL["crema"], "plastico", "SG90 horn", loc=sg)
     add(loc_pan * Pos(PX, -(cfg.body.ear_gap_mm / 2 + cfg.body.ear_thickness_mm + 1.5), PZ) *
         Rot(90, 0, 0) * Cylinder(radius=4.5, height=3), COL["alu"], "metal", "M5 cabeza")
-    # OLED SSD1306 0.96" atornillado a la cara trasera del cuerpo (mira a -X),
-    # apaisado (lado largo = Y horizontal); cables por el agujero central
-    add(loc_pan * Pos(X_BODY_BACK - 5, 0, OLED_Z) * Box(1.2, 27, 27), COL["pcb_azul"], "pcb", "OLED PCB")
-    add(loc_pan * Pos(X_BODY_BACK - 6.5, 0, OLED_Z + 3) * Box(1.5, 25.5, 15), COL["chip"], "plastico", "OLED vidrio")
-    add(loc_pan * Pos(X_BODY_BACK - 7.5, 0, OLED_Z + 3) * Box(0.6, 21.7, 11), COL["lcd"], "emisivo", "OLED pantalla")
+    # OLED EMBUTIDO desde adentro: el PCB (con el "agarre") queda DENTRO del
+    # cuerpo, atornillado a los 4 bosses; la pantalla asoma por la ventana de la
+    # cara trasera (-X) quedando al ras. Los cables salen del PCB hacia adentro.
+    add(loc_pan * Pos(X_BODY_BACK + 6, 0, OLED_Z) * Box(1.6, 38, 34), COL["pcb_azul"], "pcb", "OLED PCB")
+    add(loc_pan * Pos(X_BODY_BACK + 1.5, 0, OLED_Z) * Box(3, 35, 23), COL["chip"], "plastico", "OLED vidrio")
+    add(loc_pan * Pos(X_BODY_BACK - 0.2, 0, OLED_Z) * Box(0.6, 33, 21), COL["lcd"], "emisivo", "OLED pantalla")
     # --- cañón / cuna (tilt) ---
     # PCB bajo del eje para que el tubo de latón quede centrado en la salida
     add(Pos(124, 0, -4) * Box(18.5, 15.2, 1.6), COL["pcb_rojo"], "pcb", "KY-008",
