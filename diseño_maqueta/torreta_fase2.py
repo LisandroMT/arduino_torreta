@@ -177,11 +177,7 @@ def construir_base():
                                                  align=None), 16)
     estructura -= (anillo - puente)
     # (el OLED ya NO va en la base — se montó en la cara trasera de la cuna)
-    # funda del joystick KY-023 (PCB real 39.4 x 27.6, palanca saliendo radial)
-    # el lado de 39.4 va tangencial (Y local), 27.6 en altura (Z); pocket abierto al exterior
-    funda = Rot(0, 0, 90) * Pos(76, 0, 21) * Box(14, 46, 36)
-    funda -= Rot(0, 0, 90) * Pos(78, 0, 21) * Box(14, 40 + HOLGURA, 30 + HOLGURA)
-    estructura += funda
+    # (el joystick KY-023 ya NO va en la base — se reubica al exterior)
     # ventilación del DHT22 (cara plana de 330°)
     for i in range(5):
         estructura -= Rot(0, 0, 330) * Pos(74, -12 + i * 6, 20) * Box(8, 2.4, 14)
@@ -391,18 +387,12 @@ def componentes():
     add(uln * Box(35, 27, 1.6), COL["pcb_verde"], "pcb", "ULN2003")
     add(uln * Pos(-6, 0, 2.8) * Box(7, 19, 4), COL["chip"], "plastico", "ULN2003 IC")
     # (el OLED se montó en el tilt, ver --- cañón / cuna --- más abajo)
-    # DHT22 / buzzer / joystick
+    # DHT22 / buzzer
     add(Rot(0, 0, 330) * Pos(66, 0, 22) * Box(7.7, 15.1, 25.1), COL["dht"],
         "plastico", "DHT22")
     add(Rot(0, 0, 30) * Pos(66, 0, 22) * Rot(0, 90, 0) * Cylinder(radius=6, height=9.5),
         COL["chip"], "plastico", "Buzzer")
-    # KY-023 real: PCB 39.4 x 27.6, palanca saliendo en +X local (radial)
-    joy = Rot(0, 0, 90) * Pos(79.5, 0, 21)
-    add(joy * Box(8, 39, 27), COL["pcb_rojo"], "pcb", "Joystick PCB")
-    add(joy * Pos(7, 0, 0) * Rot(0, 90, 0) * Cylinder(radius=9, height=6),
-        COL["chip"], "plastico", "Joystick domo")
-    add(joy * Pos(13, 0, 0) * Rot(0, 90, 0) * Cylinder(radius=1.8, height=8),
-        COL["chip"], "plastico", "Joystick palanca")
+    # (el joystick KY-023 se reubica al exterior — ya no se monta en la base)
     # --- cuerpo (pan) ---
     # eje de salida hacia ADENTRO (-Y, engrana la cuna); cuerpo hacia afuera
     y_ear = cfg.body.ear_gap_mm / 2 + cfg.body.ear_thickness_mm / 2
@@ -579,7 +569,7 @@ def main():
     # (electrónica/mecánica alojada) si p["pieza"] es None.
     COMP2PIEZA = [("28BYJ", "base"), ("ESP32", "tapa"), ("WROOM", "tapa"),
                   ("ULN2003", "tapa"), ("OLED", "cuerpo"), ("DHT22", "base"),
-                  ("Buzzer", "base"), ("Joystick", "base"), ("SG90", "cuerpo"),
+                  ("Buzzer", "base"), ("SG90", "cuerpo"),
                   ("M5", "cuerpo"), ("KY-008", "canon_cuna"), ("GY-521", "canon_cuna"),
                   ("HC-SR04", "canon_cuna"), ("Webcam", "canon_cuna")]
     # grupos[pieza][tipo] -> lista de Compound. tipo: "estructura" | "componentes"

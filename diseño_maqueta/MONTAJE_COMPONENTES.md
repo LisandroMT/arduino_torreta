@@ -26,7 +26,7 @@ Cómo ensamblar en **Fusion 360** los componentes reales (`.step`/`.stp` de
 | **28BYJ-48** (motor) | `28BYJ-48_uln2003_assy.stp` | (-10,7 · 0 · 33,5) | eje vertical **+Z**, sube y encastra en el agujero en D del cuerpo. Cuerpo Ø28 **desplazado 8 mm** del eje | base (cavidad interna) |
 | **ULN2003** (driver) | (incluido en el assy de arriba) | (20 · -20 · 10,6) | PCB **horizontal** sobre la tapa, lado largo en X | tapa inferior |
 | **ESP32 DevKit V1** | `ESP32 DevkitV1.step` | (-18 · -14 · 8,6) | PCB **horizontal**, lado largo (54 mm) en Y, USB hacia un borde | tapa inferior |
-| **Joystick KY-023** | `KY-023_assy.stp` | (0 · 86 · 21) | palanca saliendo en **+Y** (radial, hacia afuera de la funda) | funda lateral de la base |
+| **Joystick KY-023** | `KY-023_assy.stp` | _(a definir)_ | _(a definir)_ | **fuera de la base** — se reubica en un mando externo (ubicación a definir) |
 | **MPU6050 (GY-521)** | `MPU6050.stp` | (32 · 0 · 86) | PCB **horizontal**, lado largo en Y | cuna del tilt |
 | **OLED SSD1306** | `OLED TEMU 0.96 in.stp` | (-41,1 · 0 · 96) | pantalla mirando hacia **-X** (atrás), apaisada (lado largo en Y) | cara trasera del cuerpo |
 | **SG90** (servo tilt) | `SG90 - Micro Servo 9g - Tower Pro.STEP` | (38 · 39,2 · 102,5) | eje **horizontal en Y** (eje de basculación), corona engranando la cuna hacia -Y | oreja derecha del cuerpo |
