@@ -14,3 +14,6 @@ venv/
 
 # Editor (config personal)
 .vscode/
+
+# Renders regenerables (se generan corriendo torreta_fase2.py)
+diseño_maqueta/outputs/*.png

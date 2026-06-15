@@ -1,21 +1,21 @@
 # Torreta Gatling — modelo CAD paramétrico y articulado
 
 Modelo CAD paramétrico (build123d, sólidos B-rep sobre OpenCASCADE) de una torreta
-gatling sci-fi, **inspirada** en la referencia de `../ejemplos_diseño/`, para el TFI
-*Torreta-Escáner 3D* (UTN FRSR 2026). Es una obra paramétrica **original** (código que
-evoca el diseño), no una copia de mallas de terceros.
+gatling sci-fi, para el TFI *Torreta-Escáner 3D* (UTN FRSR 2026). Es una obra
+paramétrica **original** (código que evoca el diseño), no una copia de mallas de terceros.
 
 **Articulada y ensamblable:** se imprime en 3 piezas separadas que se unen con
 pasadores/tornillos y luego **se mueven de verdad**:
 - **pan**  — el cuerpo gira sobre el eje vertical dentro de la base.
 - **tilt** — la cuna + cañón bascula sobre el muñón (apunta arriba/abajo).
 
-![render](outputs/torreta_hero.png)
+> 🎥 **Visualización 3D interactiva** (articulada): abrí [`docs/torreta_fase2_3d.html`](../docs/torreta_fase2_3d.html).
+> Los renders se generan corriendo el script (no se versionan); el modelo se exporta a STEP/STL/GLB en `outputs/`.
 
 ## Instalación
 
 ```bash
-cd diseño
+cd diseño_maqueta
 uv venv .venv && source .venv/bin/activate
 uv pip install -e .
 ```
