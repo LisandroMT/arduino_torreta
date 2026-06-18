@@ -87,8 +87,30 @@
   <polyline points="900,500 1040,500 1040,245 1180,245" fill="none" stroke="#1f77b4" stroke-width="2.5"/>
   <polyline points="1040,435 1180,435" fill="none" stroke="#1f77b4" stroke-width="2.5"/>
   <circle cx="1040" cy="435" r="4" fill="#1f77b4"/>
-  <!-- Láser GPIO19 -> S -->
-  <polyline points="900,550 1070,550 1070,502 1180,502" fill="none" stroke="#8b0000" stroke-width="2.5"/>
+  <!-- ===== Láser KY-008 conmutado a 5 V por llave NPN 2N2222 (low-side) ===== -->
+  <!-- ánodo S del láser -> riel 5 V -->
+  <polyline points="1180,502 1135,502" fill="none" stroke="#d62728" stroke-width="2.5"/>
+  <circle cx="1135" cy="502" r="4" fill="#d62728"/>
+  <!-- GPIO19 -> 1 kΩ -> base del 2N2222 -->
+  <polyline points="900,550 995,550" fill="none" stroke="#8b0000" stroke-width="2.5"/>
+  <rect x="995" y="543" width="50" height="14" fill="#fff" stroke="#8b0000" stroke-width="2"/>
+  <text x="1020" y="538" text-anchor="middle" font-size="11" font-weight="bold" fill="#8b0000">1 kΩ</text>
+  <line x1="1045" y1="550" x2="1085" y2="548" stroke="#8b0000" stroke-width="2.5"/>
+  <!-- símbolo NPN: barra de base + colector (arriba) + emisor (abajo, con flecha) -->
+  <line x1="1085" y1="534" x2="1085" y2="562" stroke="#222" stroke-width="3"/>
+  <line x1="1085" y1="540" x2="1106" y2="528" stroke="#8b0000" stroke-width="2.5"/>
+  <line x1="1085" y1="556" x2="1101" y2="568" stroke="#8b0000" stroke-width="2.5"/>
+  <polygon points="1101,568 1092,564 1096,572" fill="#8b0000"/>
+  <text x="1075" y="520" text-anchor="middle" font-size="11" font-weight="bold" fill="#222">2N2222 (NPN)</text>
+  <text x="1080" y="546" text-anchor="end" font-size="10" fill="#555">B</text>
+  <text x="1110" y="526" font-size="10" fill="#555">C</text>
+  <text x="1106" y="582" font-size="10" fill="#555">E</text>
+  <!-- colector -> − (cátodo) del láser (cruza los rieles sin conectar) -->
+  <polyline points="1106,528 1150,528 1150,548 1180,548" fill="none" stroke="#8b0000" stroke-width="2.5"/>
+  <!-- emisor -> GND -->
+  <polyline points="1101,568 1101,600" fill="none" stroke="#8b0000" stroke-width="2.5"/>
+  <use href="#gnd" x="1101" y="600"/>
+  <text x="1050" y="618" text-anchor="middle" font-size="10" fill="#555">llave low-side (láser a 5 V)</text>
   <!-- TRIG GPIO5 -> HC-SR04 -->
   <polyline points="900,650 1100,650 1100,655 1180,655" fill="none" stroke="#b8860b" stroke-width="2.5"/>
   <!-- ECHO + divisor resistivo -->
@@ -131,8 +153,6 @@
   <line x1="1180" y1="185" x2="1158" y2="185" stroke="#222" stroke-width="2.5"/><use href="#gnd" x="1158" y="185"/>
   <!-- MPU6050 GND -->
   <line x1="1180" y1="375" x2="1158" y2="375" stroke="#222" stroke-width="2.5"/><use href="#gnd" x="1158" y="375"/>
-  <!-- Láser − GND -->
-  <line x1="1180" y1="548" x2="1158" y2="548" stroke="#222" stroke-width="2.5"/><use href="#gnd" x="1158" y="548"/>
   <!-- HC-SR04 GND -->
   <line x1="1180" y1="715" x2="1158" y2="715" stroke="#222" stroke-width="2.5"/><use href="#gnd" x="1158" y="715"/>
   <!-- DHT22 GND -->
@@ -273,9 +293,9 @@
   <rect x="1180" y="480" width="240" height="80" rx="8" fill="#f5dcdc" stroke="#555" stroke-width="1.5"/>
   <text x="1300" y="500" text-anchor="middle" font-size="15" font-weight="bold" fill="#223">Láser KY-008</text>
   <g font-size="12" fill="#223">
-    <text x="1190" y="507">S  (señal)</text>
+    <text x="1190" y="507">S  (ánodo → 5 V)</text>
     <text x="1190" y="530" fill="#888">(medio: sin conexión)</text>
-    <text x="1190" y="553">−  (GND)</text>
+    <text x="1190" y="553">−  (cátodo → colector)</text>
   </g>
   <g fill="#ddd" stroke="#555">
     <circle cx="1180" cy="502" r="3.5"/><circle cx="1180" cy="525" r="3" fill="#888" stroke="#555"/><circle cx="1180" cy="548" r="3.5"/>

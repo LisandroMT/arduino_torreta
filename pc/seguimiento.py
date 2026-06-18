@@ -44,12 +44,12 @@ ANCHO, ALTO = 640, 480        # resolución de trabajo (baja latencia en la WEBL
 FPS_PEDIDOS = 30
 
 # Lazo proporcional (§8): error en px -> corrección de actuadores
-PASOS_POR_PX = 0.9            # azimut: pasos del 28BYJ-48 por píxel de error
-GRADOS_POR_PX = 0.08          # elevación: grados del SG90 por píxel de error
-ZONA_MUERTA_PX = 14           # |error| menor => "centrado" (A 0 0 => puede disparar)
-MAX_PASOS = 120               # tope por corrección (suaviza el movimiento)
-MAX_GRADOS = 4
-INVERTIR_AZ = False           # poner True si la torreta corrige al revés
+PASOS_POR_PX = 0.35           # azimut: pasos del 28BYJ-48 por píxel de error (bajado: evita sobrecorrección)
+GRADOS_POR_PX = 0.035         # elevación: grados del SG90 por píxel de error (bajado: menos hunting/oscilación)
+ZONA_MUERTA_PX = 24           # |error| menor => "centrado" (más ancha: no "caza"/oscila alrededor del objetivo)
+MAX_PASOS = 30                # tope por corrección: < lo que el stepper hace en un período (no acumula backlog)
+MAX_GRADOS = 2                # tope por corrección de elevación (movimiento más controlado)
+INVERTIR_AZ = True            # poner True si la torreta corrige al revés
 INVERTIR_EL = False
 
 RADIO_MINIMO_PX = 8           # tamaño mínimo del blanco para considerarlo válido
@@ -62,6 +62,12 @@ HSV_DEFECTO = {"h_min": 5, "h_max": 22, "s_min": 120, "s_max": 255,
                "v_min": 90, "v_max": 255}
 ARCHIVO_HSV = Path(__file__).parent / "hsv.json"
 
+# Offset de la mira (calibración del paralaje cámara-láser). Se ajusta en vivo
+# con W/A/S/D y se guarda en mira.json. dx>0 = mira a la derecha; dy>0 = abajo.
+ARCHIVO_MIRA = Path(__file__).parent / "mira.json"
+MIRA = {"dx": 0, "dy": 0}     # se sobrescribe con lo guardado al arrancar (cargar_mira)
+PASO_MIRA = 2                 # píxeles por tecla al calibrar la mira
+
 
 # ============================ SERIE (ESP32) =================================
 class EnlaceSerie:
@@ -70,6 +76,7 @@ class EnlaceSerie:
     def __init__(self, puerto: str | None, activo: bool = True):
         self.telemetria: dict[str, str] = {}
         self.ultimo_fire = 0.0
+        self.disparos = 0
         self.conectado = False
         self._ser = None
         if not activo or serial is None:
@@ -119,6 +126,7 @@ class EnlaceSerie:
                         self.telemetria[k] = v
             elif linea == "FIRE":
                 self.ultimo_fire = time.monotonic()
+                self.disparos += 1
 
 
 # ============================== CÁMARA ======================================
@@ -147,6 +155,20 @@ def cargar_hsv() -> dict:
         except Exception:
             pass
     return dict(HSV_DEFECTO)
+
+
+def cargar_mira() -> None:
+    """Carga el offset de la mira guardado (paralaje cámara-láser) en MIRA."""
+    if ARCHIVO_MIRA.exists():
+        try:
+            MIRA.update({k: int(v) for k, v in json.loads(ARCHIVO_MIRA.read_text()).items()
+                         if k in MIRA})
+        except Exception:
+            pass
+
+
+def guardar_mira() -> None:
+    ARCHIVO_MIRA.write_text(json.dumps(MIRA))
 
 
 def calibrar_hsv(cap: cv2.VideoCapture, hsv: dict) -> dict:
@@ -269,59 +291,119 @@ def detectar_blanco(mask: np.ndarray):
 # ============================== OVERLAY (HUD) ===============================
 def dibujar_manos(frame, manos, detector, es_objetivo):
     """Encuadra cada mano en un rectángulo verde + esqueleto de 21 puntos."""
-    verde = (80, 220, 120)
+    verde = (90, 230, 130)
     for (x, y, w, h, lms) in manos:
-        detector.dibujar_esqueleto(frame, lms)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), verde, 2, cv2.LINE_AA)
-        etiqueta = "MANO (objetivo)" if es_objetivo else "MANO"
+        # sin esqueleto: solo un recuadro fino para no tapar la mano ni el láser
+        cv2.rectangle(frame, (x, y), (x + w, y + h), verde, 1, cv2.LINE_AA)
+        etiqueta = "OBJETIVO" if es_objetivo else "mano"
         cv2.putText(frame, etiqueta, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, verde, 1, cv2.LINE_AA)
 
 
+def _panel(frame, x1, y1, x2, y2, alpha=0.5):
+    """Oscurece una franja para que el texto contraste (semitransparente)."""
+    x1, y1 = max(int(x1), 0), max(int(y1), 0)
+    x2, y2 = min(int(x2), frame.shape[1]), min(int(y2), frame.shape[0])
+    sub = frame[y1:y2, x1:x2]
+    if sub.size:
+        frame[y1:y2, x1:x2] = cv2.addWeighted(sub, 1 - alpha,
+                                              np.zeros_like(sub), alpha, 0)
+
+
+def _brackets(frame, bx, by, s, col):
+    """Corner-brackets de mira alrededor del blanco (bx, by)."""
+    L = max(10, s // 2)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = int(bx + sx * s), int(by + sy * s)
+            cv2.line(frame, (x, y), (int(x - sx * L), y), col, 2, cv2.LINE_AA)
+            cv2.line(frame, (x, y), (x, int(y - sy * L)), col, 2, cv2.LINE_AA)
+
+
 def dibujar_hud(frame, blanco, suave, centrado, enlace, mostrar_ayuda, fps,
                 modo_objetivo):
+    """HUD estilo 'targeting': barras de datos, mira con brackets y estado por color."""
     h, w = frame.shape[:2]
     cx, cy = w // 2, h // 2
-    verde, ambar, rojo = (80, 220, 120), (60, 180, 255), (60, 60, 230)
+    ax, ay = cx + MIRA["dx"], cy + MIRA["dy"]   # punto de mira (calibrado al láser)
+    verde, ambar, rojo = (90, 230, 130), (60, 190, 255), (60, 60, 240)
+    celeste, claro, gris = (235, 200, 90), (240, 240, 240), (175, 175, 175)
+    F, FD = cv2.FONT_HERSHEY_SIMPLEX, cv2.FONT_HERSHEY_DUPLEX
 
-    # retícula central + zona muerta
-    cv2.drawMarker(frame, (cx, cy), ambar, cv2.MARKER_CROSS, 26, 1)
-    cv2.circle(frame, (cx, cy), ZONA_MUERTA_PX, ambar, 1, cv2.LINE_AA)
+    tel = enlace.telemetria
+    modo = tel.get("modo", "--")
+    temp, hum, pitch = tel.get("temp", "--"), tel.get("hum", "--"), tel.get("pitch", "--")
+    az, el = tel.get("az", "--"), tel.get("el", "--")
+    try:
+        dist = float(tel.get("dist", "nan"))
+    except (TypeError, ValueError):
+        dist = float("nan")
+    en_rango = 20.0 <= dist <= 200.0
+    disparando = time.monotonic() - enlace.ultimo_fire < 5.0
 
-    # blanco detectado: círculo + vector de error
+    # estado/lock por color
+    if disparando:
+        estado, col = "FIRE!", rojo
+    elif centrado:
+        estado, col = "LOCKED", verde
+    elif blanco is not None:
+        estado, col = "TRACKING", ambar
+    else:
+        estado, col = "SIN OBJETIVO", gris
+
+    # --- barra superior: modo + enlace (izq) / sensores (der) ---
+    _panel(frame, 0, 0, w, 30)
+    cv2.putText(frame, f"> {modo}", (10, 21), FD, 0.6, claro, 1, cv2.LINE_AA)
+    cv2.circle(frame, (150, 15), 5, verde if enlace.conectado else rojo, -1, cv2.LINE_AA)
+    cv2.putText(frame, "serie" if enlace.conectado else "SIN SERIE", (162, 21), F,
+                0.5, verde if enlace.conectado else rojo, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"T {temp}C", (w - 250, 21), F, 0.5, ambar, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"H {hum}%", (w - 165, 21), F, 0.5, celeste, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"PITCH {pitch}", (w - 100, 21), F, 0.5, claro, 1, cv2.LINE_AA)
+
+    # --- mira central + brackets sobre el blanco ---
+    cv2.drawMarker(frame, (ax, ay), col, cv2.MARKER_CROSS, 30, 1, cv2.LINE_AA)
+    cv2.circle(frame, (ax, ay), ZONA_MUERTA_PX, col, 1, cv2.LINE_AA)
+    lock_pct = 0
     if blanco is not None:
         bx, by, r = suave
-        color = verde if centrado else rojo
-        cv2.circle(frame, (bx, by), r, color, 2, cv2.LINE_AA)
-        cv2.circle(frame, (bx, by), 3, color, -1, cv2.LINE_AA)
-        cv2.line(frame, (cx, cy), (bx, by), color, 1, cv2.LINE_AA)
+        _brackets(frame, bx, by, max(int(r) + 25, 45), col)   # más margen alrededor del blanco
+        cv2.line(frame, (ax, ay), (int(bx), int(by)), col, 1, cv2.LINE_AA)
+        err = abs(bx - ax) + abs(by - ay)
+        lock_pct = int(max(0, 100 - err * 100 / (w * 0.5)))
 
-    # ---- distancia GRANDE en pantalla (requisito §3) ----
-    dist = enlace.telemetria.get("dist", "--")
-    temp = enlace.telemetria.get("temp", "--")
-    modo = enlace.telemetria.get("modo", "--")
-    cv2.putText(frame, f"{dist} cm", (w - 195, 52),
-                cv2.FONT_HERSHEY_DUPLEX, 1.4, verde, 2, cv2.LINE_AA)
-    cv2.putText(frame, f"T:{temp}C  modo:{modo}", (w - 195, 78),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (210, 210, 210), 1, cv2.LINE_AA)
+    # --- barra de DISTANCIA (verde en rango 20-200, rojo fuera) ---
+    bx0, by0 = w - 250, 44
+    cv2.putText(frame, "DIST", (bx0, by0 + 5), F, 0.45, gris, 1, cv2.LINE_AA)
+    bar_x, bar_w = bx0 + 44, 96
+    cv2.rectangle(frame, (bar_x, by0 - 7), (bar_x + bar_w, by0 + 3), gris, 1)
+    if dist == dist and dist >= 0:                      # dist == dist => no NaN
+        fc = verde if en_rango else rojo
+        cv2.rectangle(frame, (bar_x, by0 - 7),
+                      (bar_x + int(bar_w * min(dist / 220.0, 1.0)), by0 + 3), fc, -1)
+        cv2.putText(frame, f"{int(dist)}cm", (bar_x + bar_w + 8, by0 + 5), F, 0.5, fc, 1, cv2.LINE_AA)
+    else:
+        cv2.putText(frame, "--", (bar_x + bar_w + 8, by0 + 5), F, 0.5, gris, 1, cv2.LINE_AA)
 
-    # estado
-    estado = ("OBJETIVO ALCANZADO" if time.monotonic() - enlace.ultimo_fire < 1.2
-              else "CENTRADO - en espera de rango" if centrado
-              else "SIGUIENDO" if blanco is not None else "SIN OBJETIVO")
-    cv2.putText(frame, estado, (12, 30), cv2.FONT_HERSHEY_DUPLEX, 0.7,
-                verde if "ALCANZADO" in estado or "CENTRADO" in estado else ambar,
-                1, cv2.LINE_AA)
-    cv2.putText(frame, f"objetivo: {modo_objetivo.upper()} (r cambia)", (12, 52),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (210, 210, 210), 1, cv2.LINE_AA)
-    serie_txt = "serie OK" if enlace.conectado else "SIN SERIE"
-    cv2.putText(frame, f"{serie_txt} · {fps:4.1f} fps", (12, h - 14),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                verde if enlace.conectado else rojo, 1, cv2.LINE_AA)
+    # --- estado grande + lock% (centro arriba) ---
+    cv2.putText(frame, estado, (cx - 70, 66), FD, 0.8, col, 2, cv2.LINE_AA)
+    if blanco is not None and not disparando:
+        cv2.putText(frame, f"LOCK {lock_pct}%", (cx - 38, 86), F, 0.5, col, 1, cv2.LINE_AA)
+
+    # --- banner de disparo (parpadea) ---
+    if disparando and int(time.monotonic() * 4) % 2 == 0:
+        _panel(frame, cx - 185, cy - 112, cx + 185, cy - 72, 0.55)
+        cv2.putText(frame, "OBJETIVO ALCANZADO", (cx - 175, cy - 84), FD, 0.8, rojo, 2, cv2.LINE_AA)
+
+    # --- barra inferior: ejes / objetivo / disparos / fps ---
+    _panel(frame, 0, h - 28, w, h)
+    cv2.putText(frame, f"AZ {az}  EL {el}", (10, h - 9), F, 0.5, claro, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"obj:{modo_objetivo.upper()}", (185, h - 9), F, 0.45, gris, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"DISPAROS:{enlace.disparos}", (cx + 30, h - 9), F, 0.5, rojo, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"{fps:4.1f}fps", (w - 80, h - 9), F, 0.5, gris, 1, cv2.LINE_AA)
     if mostrar_ayuda:
-        cv2.putText(frame, "q salir · c calibrar color · r color/mano · h ayuda",
-                    (12, h - 36), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
-                    (180, 180, 180), 1, cv2.LINE_AA)
+        cv2.putText(frame, "q salir . c HSV . wasd mira . 0 reset mira . r color/mano . h ayuda",
+                    (10, h - 36), F, 0.42, gris, 1, cv2.LINE_AA)
 
 
 # ================================= MAIN =====================================
@@ -340,6 +422,7 @@ def main() -> None:
 
     cap = abrir_camara(args.camara)
     hsv = cargar_hsv()
+    cargar_mira()                 # offset de la mira guardado (calibración del láser)
     if args.calibrar:
         hsv = calibrar_hsv(cap, hsv)
     enlace = EnlaceSerie(args.puerto, activo=not args.sin_serial)
@@ -354,6 +437,9 @@ def main() -> None:
     mostrar_ayuda = True
 
     print("Seguimiento activo. 'q' para salir.")
+    VENTANA = "Torreta - nodo de percepcion"
+    cv2.namedWindow(VENTANA, cv2.WINDOW_NORMAL)   # redimensionable
+    cv2.resizeWindow(VENTANA, 1280, 960)          # arranca grande (se puede arrastrar)
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -381,8 +467,8 @@ def main() -> None:
                 a = 0.45
                 suave = tuple(int(a * n + (1 - a) * v)
                               for n, v in zip(blanco, suave))
-            dx = suave[0] - w // 2          # + : blanco a la derecha
-            dy = suave[1] - h // 2          # + : blanco abajo
+            dx = suave[0] - (w // 2 + MIRA["dx"])   # + : blanco a la derecha de la mira
+            dy = suave[1] - (h // 2 + MIRA["dy"])   # + : blanco abajo de la mira
             centrado = abs(dx) <= ZONA_MUERTA_PX and abs(dy) <= ZONA_MUERTA_PX
 
             ahora = time.monotonic()
@@ -432,6 +518,17 @@ def main() -> None:
             suave = None     # reinicia el suavizado al cambiar de objetivo
         if tecla == ord("h"):
             mostrar_ayuda = not mostrar_ayuda
+        # Calibración de la mira (paralaje cámara-láser): W/A/S/D mueven, 0 resetea
+        if tecla == ord("d"):
+            MIRA["dx"] += PASO_MIRA; guardar_mira()
+        if tecla == ord("a"):
+            MIRA["dx"] -= PASO_MIRA; guardar_mira()
+        if tecla == ord("s"):
+            MIRA["dy"] += PASO_MIRA; guardar_mira()
+        if tecla == ord("w"):
+            MIRA["dy"] -= PASO_MIRA; guardar_mira()
+        if tecla == ord("0"):
+            MIRA["dx"] = MIRA["dy"] = 0; guardar_mira()
 
     cap.release()
     cv2.destroyAllWindows()

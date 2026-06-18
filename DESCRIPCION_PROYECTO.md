@@ -339,11 +339,13 @@ secundario: no usa el sistema, pero sus movimientos lo estimulan y disparan su c
 | 6 | IMU MPU6050 | 1 |
 | 7 | Joystick analógico con pulsador | 1 |
 | 8 | Pantalla OLED SSD1306 0.96" (I2C, 128x64) | 1 |
-| 9 | Módulo láser | 1 |
-| 10 | Buzzer | 1 |
-| 11 | Webcam (USB, montada sobre la torreta) | 1 |
-| 12 | Computadora con Python + OpenCV | 1 |
-| 13 | Fuente de alimentación / regulación | según consumo |
+| 9 | Módulo láser (KY-008) | 1 |
+| 10 | Transistor NPN 2N2222 (llave del láser a 5 V) | 1 |
+| 11 | Resistencia 1 kΩ (base del 2N2222) | 1 |
+| 12 | Buzzer | 1 |
+| 13 | Webcam (USB, montada sobre la torreta) | 1 |
+| 14 | Computadora con Python + OpenCV | 1 |
+| 15 | Fuente de alimentación / regulación | según consumo |
 | — | Relés *(reserva, no usados en esta versión)* | 0 |
 
 ---

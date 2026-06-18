@@ -13,6 +13,8 @@
     { "type": "wokwi-mpu6050", "id": "imu", "top": 180, "left": 760, "attrs": {} },
     { "type": "wokwi-resistor", "id": "r1", "top": 330, "left": 700, "attrs": { "value": "220" } },
     { "type": "wokwi-led", "id": "laser", "top": 310, "left": 820, "attrs": { "color": "red", "label": "láser" } },
+    { "type": "wokwi-npn-bjt", "id": "q1", "top": 370, "left": 930, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r2", "top": 430, "left": 760, "attrs": { "value": "1000" } },
     { "type": "wokwi-hc-sr04", "id": "ultrasonic", "top": 430, "left": 720, "attrs": {} },
     { "type": "wokwi-dht22", "id": "dht", "top": 590, "left": 760, "attrs": {} }
   ],
@@ -63,8 +65,11 @@
     [ "buzzer:2", "esp:27", "gray", [] ],
     [ "buzzer:1", "esp:GND.3", "black", [] ],
 
-    [ "r1:1", "esp:19", "red", [] ],
+    [ "r1:1", "esp:5V", "red", [] ],
     [ "r1:2", "laser:A", "red", [] ],
-    [ "laser:C", "esp:GND.2", "black", [] ]
+    [ "laser:C", "q1:C", "red", [] ],
+    [ "q1:E", "esp:GND.2", "black", [] ],
+    [ "esp:19", "r2:1", "green", [] ],
+    [ "r2:2", "q1:B", "green", [] ]
   ]
 }

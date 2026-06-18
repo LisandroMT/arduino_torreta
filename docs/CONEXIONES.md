@@ -37,7 +37,8 @@ Guía de conexionado de la torreta sobre protoboard. El mapa de pines de este do
 | Joystick | SW (pulsador / ISR) | GPIO23 | protoboard | — |
 | Servo SG90 | Señal (cable naranja) | GPIO13 | aire | **5V externa** |
 | ULN2003 | IN1 / IN2 / IN3 / IN4 | GPIO26 / GPIO25 / GPIO33 / GPIO32 | aire | **5V externa** |
-| Láser (KY-008) | S / − (3 pines: el del medio NC) | GPIO19 / GND | protoboard | — |
+| Láser (KY-008) | S (ánodo) / − (cátodo) | conmutado a 5V por el 2N2222 (ver fila siguiente) | protoboard | **5V externa** |
+| 2N2222 (NPN, llave del láser) | Base / Colector / Emisor | GPIO19 **vía 1kΩ** / al `−` del láser / a GND | protoboard | — |
 | Buzzer activo | + | GPIO27 | aire | — |
 
 **Pines prohibidos** (no usar aunque estén libres): GPIO0, 2, 12 y 15 son de *strapping* —
@@ -75,7 +76,7 @@ en el aire y se cablea con dupont hembra directo a cada módulo.
      ULN2003 IN4 ────┤ GPIO32                        GPIO23 ├──── SW joystick (ISR)
      ULN2003 IN3 ────┤ GPIO33                        GPIO22 ├──── SCL → OLED + MPU6050
      ULN2003 IN2 ────┤ GPIO25                        GPIO21 ├──── SDA → OLED + MPU6050
-     ULN2003 IN1 ────┤ GPIO26                        GPIO19 ├──── S láser KY-008
+     ULN2003 IN1 ────┤ GPIO26                        GPIO19 ├──── 1kΩ → base 2N2222 (láser a 5V)
       Buzzer (+) ────┤ GPIO27                        GPIO18 ├◄─── divisor 1kΩ/2kΩ ◄── ECHO HC-SR04
  Servo (naranja) ────┤ GPIO13                         GPIO5 ├──── TRIG HC-SR04
  riel GND (azul) ────┤ GND                            GPIO4 ├──── DATA DHT22
@@ -88,7 +89,8 @@ en el aire y se cablea con dupont hembra directo a cada módulo.
 ```
 FUENTE EXTERNA 5V ──► riel 5V ──┬── VCC HC-SR04
                                 ├── rojo servo SG90 (+ capacitor 220–470 µF a GND)
-                                └── (+) ULN2003
+                                ├── (+) ULN2003
+                                └── S (ánodo) láser KY-008 (− del láser → colector 2N2222 → GND)
 
 ESP32 3V3 ────────► riel 3.3V ──┬── VCC OLED SSD1306
                                 ├── VCC MPU6050
@@ -203,16 +205,38 @@ se hincha y puede **reventar** — verificá la polaridad antes de energizar. El
 - IN1→GPIO26, IN2→GPIO25, IN3→GPIO33, IN4→GPIO32 (dupont hembra a la hilera colgante).
 - **Respetar ese orden**: si la secuencia queda cruzada, el motor vibra en lugar de girar.
 
-### Paso 9 — Láser y buzzer
+### Paso 9 — Láser (con llave de transistor) y buzzer
 
-- Láser KY-008: tiene **3 terminales físicos**, pero solo se usan 2 — `S` a
-  GPIO19 y `−` a masa. El **pin del medio queda al aire** (no está conectado a
-  nada internamente; es solo apoyo mecánico, por eso no tiene serigrafía). El
-  láser se alimenta por el propio pin `S`; a 3.3 V del GPIO enciende, aunque más
-  tenue que a 5 V.
-- Buzzer activo: `+` a GPIO27 (dupont hembra), `−` a masa.
-- Ambos consumen poco y van directo del GPIO; si el láser se ve débil, pasarlo a 5V con un
-  transistor NPN como llave.
+El láser se alimenta a **5 V** a través de una **llave NPN low-side** (2N2222), así
+enciende a brillo pleno. El GPIO19 ya **no** alimenta el láser: solo controla la base
+del transistor. El **pin del medio del KY-008 queda al aire** (es solo apoyo mecánico).
+
+```
+   riel 5V ─────────────► S (ánodo) KY-008
+                                │  (resistencia y diodo internos del módulo)
+                          − (cátodo)
+                                │
+                                ▼
+                          C (colector)
+   GPIO19 ──[ 1kΩ ]──► B (base)   2N2222 (NPN)
+                          E (emisor)
+                                │
+                               GND
+```
+
+- Conexiones del láser:
+  - `S` (ánodo) → **riel 5 V externo**.
+  - `−` (cátodo) → **colector** del 2N2222.
+  - **emisor** del 2N2222 → **GND** (riel azul).
+  - **base** del 2N2222 → **1 kΩ** → **GPIO19**.
+- El **firmware no cambia**: `GPIO19` en alto satura el transistor y enciende el láser
+  (misma lógica `HIGH = encendido` que cuando iba directo).
+- **Identificar las patas del 2N2222** (TO-92): con la **cara plana hacia vos** y las
+  patas hacia abajo, son **E – B – C** de izquierda a derecha. (Un BC547 o S8050 sirven
+  igual, mismo esquema.)
+- ⚠️ El blink de arranque del láser solo se ve con la **fuente de 5 V conectada**; con solo
+  el USB, el láser no enciende (el buzzer sí, porque va directo al GPIO).
+- Buzzer activo: `+` a GPIO27 (dupont hembra), `−` a masa. Consume poco y va directo del GPIO.
 
 ### Paso 10 — Inspección antes de energizar
 
@@ -222,6 +246,7 @@ Con todo desconectado, revisar módulo por módulo:
 - [ ] GND de la fuente externa unido al GND del ESP32 (rieles azules puenteados).
 - [ ] Divisor del ECHO presente (GPIO18 nunca recibe 5V directos).
 - [ ] Rojo del servo y `+` del ULN2003 en el riel **externo**, no en el ESP32.
+- [ ] Llave del láser: ánodo a **5 V**, cátodo → **colector**, **emisor** → GND, **base** → 1kΩ → GPIO19 (patas **E-B-C** del 2N2222).
 - [ ] Dupont hembra de la hilera colgante firmes (tirar suave de cada uno).
 
 ### Paso 11 — Encendido por etapas y verificación

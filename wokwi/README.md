@@ -19,7 +19,7 @@ de disparo por rango.
 
 | Real | En Wokwi | Motivo |
 |---|---|---|
-| Láser KY-008 | LED rojo + resistencia 220 Ω | Wokwi no tiene módulo láser |
+| Láser KY-008 conmutado a 5 V con llave NPN (2N2222) | LED rojo + R 220 Ω alimentado de 5 V vía transistor NPN; base por R 1 kΩ desde GPIO19 | Wokwi no tiene módulo láser; se replica la llave low-side con un `wokwi-npn-bjt`. Misma lógica de control (GPIO19 alto = láser encendido) |
 | 28BYJ-48 + ULN2003 | Stepper genérico + **chip personalizado ULN2003** (`uln2003.chip.c`) | Wokwi no trae el ULN2003; el chip propio replica su rol (GPIO 26/25/33/32 → IN1..IN4 → bobinas) con la misma lógica de control (AccelStepper HALF4WIRE). Se modela como buffer no inversor — ver nota en el `.chip.c` |
 | Divisor 1kΩ/2kΩ en ECHO | ECHO directo a GPIO18 | La simulación no modela niveles de tensión; **en el hardware real el divisor es obligatorio** |
 | PC con Python + OpenCV | Comandos tipeados en el monitor serie | Wokwi no ejecuta el nodo de percepción |
